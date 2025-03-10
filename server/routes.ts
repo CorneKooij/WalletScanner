@@ -2,9 +2,26 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getWalletInfo, getTokenMetadata, getTransactionDetails } from './services/blockfrostService';
+import { getTokenPrices } from './services/minswapService';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // API routes
+  // Token prices endpoint
+  app.get('/api/prices', async (req, res) => {
+    try {
+      const prices = await getTokenPrices();
+      return res.json({
+        prices: Array.from(prices.entries()).map(([symbol, data]) => ({
+          symbol,
+          ...data
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching token prices:', error);
+      return res.status(500).json({ message: 'Failed to fetch token prices' });
+    }
+  });
+
+  // Wallet data endpoint
   app.get('/api/wallet/:address', async (req, res) => {
     try {
       const { address } = req.params;
@@ -13,13 +30,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Wallet address is required' });
       }
 
-      // Basic address validation
       if (!address.startsWith('addr1')) {
         return res.status(400).json({ message: 'Invalid Cardano address format' });
       }
 
       // Try to get wallet from storage first
       let wallet = await storage.getWalletByAddress(address);
+
+      // Get current token prices
+      const tokenPrices = await getTokenPrices();
 
       // If wallet doesn't exist or data is stale, fetch from Blockfrost
       if (!wallet || isStaleData(wallet.lastUpdated)) {
@@ -34,15 +53,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastUpdated: new Date()
             });
 
-            // Store tokens with proper decimal handling
+            // Store tokens with proper decimal handling and live prices
             if (walletData.tokens) {
               for (const token of walletData.tokens) {
+                const tokenPrice = tokenPrices.get(token.symbol);
                 await storage.createToken({
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: token.symbol || 'UNKNOWN',
                   balance: token.quantity || '0',
-                  valueUsd: token.valueUsd || null
+                  valueUsd: tokenPrice ? Number(token.quantity) * tokenPrice.priceUsd : null,
+                  decimals: token.decimals || 0,
+                  unit: token.unit
                 });
               }
             }
@@ -75,10 +97,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createBalanceHistory({
               walletId: wallet.id,
               date: new Date(),
-              balance: walletData.balance || '0'
+              balance: String(walletData.balance || '0')
             });
           } else {
-            // Update existing wallet
+            // Update existing wallet with fresh price data
             wallet = await storage.updateWallet(wallet.id, {
               ...wallet,
               lastUpdated: new Date()
@@ -97,21 +119,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Return wallet data with calculated distributions
+      // Get wallet data
       const tokens = await storage.getTokensByWalletId(wallet.id);
       const transactions = await storage.getTransactionsByWalletId(wallet.id);
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
+
+      // Update token values with current prices
+      const updatedTokens = tokens.map(token => {
+        const price = tokenPrices.get(token.symbol);
+        if (price) {
+          return {
+            ...token,
+            valueUsd: Number(token.balance) * price.priceUsd
+          };
+        }
+        return token;
+      });
 
       return res.json({
         address: wallet.address,
         handle: null,
         balance: {
           ada: tokens.find(t => t.symbol === 'ADA')?.balance || '0',
-          usd: tokens.reduce((sum, token) => sum + (Number(token.valueUsd) || 0), 0),
+          usd: updatedTokens.reduce((sum, token) => sum + (Number(token.valueUsd) || 0), 0),
           percentChange: calculatePercentChange(history)
         },
-        tokens,
+        tokens: updatedTokens,
         transactions,
         nfts,
         balanceHistory: history
@@ -126,7 +160,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Helper functions
 function isStaleData(lastUpdated: Date | null): boolean {
   if (!lastUpdated) return true;
   const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
