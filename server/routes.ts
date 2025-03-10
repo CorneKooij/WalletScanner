@@ -134,9 +134,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
+      // Find ADA token and extract its balance
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
       const adaBalance = adaToken ? adaToken.balance : '0';
 
+      // Convert balance history
       const convertedHistory = history.map(h => ({
         ...h,
         balance: String(Number(h.balance) / 1_000_000)
