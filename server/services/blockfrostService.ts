@@ -10,6 +10,9 @@ const blockfrost = new BlockFrostAPI({
   network: 'mainnet',
 });
 
+// ADA Handle Policy ID - required for resolving handles
+const ADA_HANDLE_POLICY_ID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a';
+
 const logApiCall = (method: string, ...args: any[]) => {
   console.log(`[Blockfrost API] Calling ${method} with args:`, ...args);
 };
@@ -20,19 +23,35 @@ export async function getWalletInfo(address: string, isHandle = false) {
 
     let resolvedAddress = address;
 
-    // If it's a handle, resolve it to an address first
+    // If it's a handle, resolve it to an address
     if (isHandle) {
       try {
-        const handleInfo = await blockfrost.assetsById(`f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a${Buffer.from(address).toString('hex')}`);
+        console.log('[Blockfrost] Resolving handle:', address);
+        // Convert handle to hex and append to policy ID
+        const handleHex = Buffer.from(address).toString('hex');
+        const assetId = `${ADA_HANDLE_POLICY_ID}${handleHex}`;
+        console.log('[Blockfrost] Looking up asset:', assetId);
+
+        // Get handle asset info
+        const handleInfo = await blockfrost.assetsById(assetId);
         if (!handleInfo) {
           throw new Error('Handle not found');
         }
-        // Get the first transaction that used this handle
-        const txs = await blockfrost.assetTransactions(handleInfo.asset);
-        if (txs.length > 0) {
-          const tx = await blockfrost.txsUtxos(txs[0].tx_hash);
-          resolvedAddress = tx.outputs[0].address;
+
+        // Get transactions for this handle
+        const txs = await blockfrost.assetsTransactions(assetId);
+        if (!txs || txs.length === 0) {
+          throw new Error('No transactions found for handle');
         }
+
+        // Get the first transaction output (handle owner)
+        const tx = await blockfrost.txsUtxos(txs[0].tx_hash);
+        if (!tx || !tx.outputs || tx.outputs.length === 0) {
+          throw new Error('No outputs found in handle transaction');
+        }
+
+        resolvedAddress = tx.outputs[0].address;
+        console.log('[Blockfrost] Resolved handle to address:', resolvedAddress);
       } catch (error) {
         console.error('[Blockfrost] Error resolving handle:', error);
         throw new Error('Handle not found or invalid');

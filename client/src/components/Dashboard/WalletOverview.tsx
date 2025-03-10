@@ -53,47 +53,72 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Calculate total portfolio value and prepare token data
-    const adaBalance = parseFloat(formatTokenAmount(walletData.balance.ada || 0, 'ADA'));
-    let totalValue = walletData.balance.usd || 0;
+    // Get ADA balance in native units (lovelace)
+    const adaBalance = BigInt(walletData.balance.ada || 0);
 
-    // Filter and transform token data
-    const tokenData = walletData.tokens
-      .filter(token => token.symbol !== 'ADA' && token.balance && parseFloat(token.balance.toString()) > 0)
-      .map(token => ({
-        name: trimTokenName(token.name || token.symbol),
-        value: parseFloat(token.balance.toString()),
-        symbol: token.symbol
-      }))
-      .sort((a, b) => b.value - a.value);
+    // Calculate total value including ADA and all tokens
+    let tokenData = [];
 
-    // Calculate percentages and prepare chart data
-    const total = totalValue;
-    const adaPercentage = ((walletData.balance.usd || 0) / total) * 100;
-
-    let labels = ['ADA'];
-    let data = [walletData.balance.usd || 0];
-    let percentages = [adaPercentage];
-
-    // Add significant tokens (>1% of portfolio)
-    tokenData.forEach(token => {
-      const value = token.value;
-      const percentage = (value / total) * 100;
-      if (percentage >= 1) {
-        labels.push(token.name);
-        data.push(value);
-        percentages.push(percentage);
-      }
+    // Add ADA first
+    tokenData.push({
+      name: 'ADA',
+      balance: adaBalance,
+      symbol: 'ADA',
+      valueUsd: walletData.balance.usd
     });
+
+    // Add other tokens
+    walletData.tokens
+      .filter(token => token.symbol !== 'ADA' && token.balance)
+      .forEach(token => {
+        tokenData.push({
+          name: trimTokenName(token.name || token.symbol),
+          balance: BigInt(token.balance.toString()),
+          symbol: token.symbol,
+          valueUsd: token.valueUsd
+        });
+      });
+
+    // Sort tokens by USD value
+    tokenData = tokenData.sort((a, b) => (b.valueUsd || 0) - (a.valueUsd || 0));
+
+    // Calculate total USD value
+    const totalValue = tokenData.reduce((sum, token) => sum + (token.valueUsd || 0), 0);
+
+    // Prepare chart data (only include tokens with > 1% of total value)
+    const significantTokens = tokenData.filter(token =>
+      ((token.valueUsd || 0) / totalValue) >= 0.01
+    );
+
+    const otherTokens = tokenData.filter(token =>
+      ((token.valueUsd || 0) / totalValue) < 0.01
+    );
+
+    // Calculate percentages
+    const chartData = significantTokens.map(token => ({
+      name: token.name,
+      value: token.valueUsd || 0,
+      percentage: ((token.valueUsd || 0) / totalValue * 100)
+    }));
+
+    // Add "Others" category if needed
+    const othersValue = otherTokens.reduce((sum, token) => sum + (token.valueUsd || 0), 0);
+    if (othersValue > 0) {
+      chartData.push({
+        name: 'Others',
+        value: othersValue,
+        percentage: (othersValue / totalValue * 100)
+      });
+    }
 
     // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
-        labels,
+        labels: chartData.map(item => item.name),
         datasets: [{
-          data,
-          backgroundColor: chartColorsRef.current.slice(0, labels.length),
+          data: chartData.map(item => item.value),
+          backgroundColor: chartColorsRef.current.slice(0, chartData.length),
           borderWidth: 0
         }]
       },
@@ -110,8 +135,8 @@ const WalletOverview = () => {
               boxWidth: 12,
               font: { size: 11 },
               generateLabels: (chart) => {
-                return labels.map((label, i) => ({
-                  text: `${label} (${percentages[i].toFixed(1)}%)`,
+                return chartData.map((item, i) => ({
+                  text: `${item.name} (${item.percentage.toFixed(1)}%)`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -123,9 +148,8 @@ const WalletOverview = () => {
           tooltip: {
             callbacks: {
               label: (context) => {
-                const value = context.raw as number;
-                const percentage = ((value / total) * 100).toFixed(1);
-                return `${context.label}: $${formatADA(value)} (${percentage}%)`;
+                const item = chartData[context.dataIndex];
+                return `${item.name}: $${formatADA(item.value)} (${item.percentage.toFixed(1)}%)`;
               }
             }
           }
@@ -239,7 +263,7 @@ const WalletOverview = () => {
             );
           })}
         </div>
-        <button 
+        <button
           className="mt-4 text-[#2563EB] text-sm font-medium"
           onClick={() => window.location.href = "/transactions"}
         >
