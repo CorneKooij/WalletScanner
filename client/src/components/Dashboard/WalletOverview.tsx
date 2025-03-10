@@ -47,42 +47,48 @@ const WalletOverview = () => {
     return `${cleanName.substring(0, maxLength)}...`;
   };
 
-  // Convert token amount to ADA equivalent
+  // Convert token amount to ADA equivalent based on USD value
   const getTokenValueInAda = (token: Token) => {
     if (!token || !token.balance) return 0;
 
-    // For ADA, just return the balance (already in ADA)
+    const balance = Number(token.balance);
+    if (balance <= 0) return 0;
+
+    // For ADA, balance is already in ADA
     if (token.symbol === 'ADA') {
-      return Number(token.balance);
+      return balance;
     }
 
-    // For other tokens, convert USD value to ADA equivalent
-    if (token.valueUsd && walletData?.balance.usd && Number(walletData.balance.ada) > 0) {
-      // Calculate ADA price: total USD value / total ADA amount
-      const adaPriceUsd = walletData.balance.usd / Number(walletData.balance.ada);
-      // Convert token's USD value to ADA
-      return token.valueUsd / adaPriceUsd;
+    // For other tokens, calculate ADA equivalent using USD values
+    if (walletData?.balance.ada) {
+      const adaUsdPrice = walletData.balance.usd / Number(walletData.balance.ada);
+      // If token has USD value, use it to calculate ADA equivalent
+      if (token.valueUsd) {
+        return token.valueUsd / adaUsdPrice;
+      }
+      // Otherwise use token balance directly
+      return balance;
     }
 
-    return 0; // If no USD value available, exclude from chart
+    return 0;
   };
 
-  // Check if token is a valid token (not NFT or handle)
+  // Check if token is a valid token for the chart
   const isValidToken = (token: Token) => {
     if (!token || !token.balance) return false;
 
-    // Exclude empty or zero balance tokens
     const balance = Number(token.balance);
     if (balance <= 0) return false;
 
     // Exclude handles (policy ID check)
-    if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) return false;
+    if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) {
+      return false;
+    }
 
-    // Only exclude single-quantity NFTs
-    if (token.decimals === 0 && balance === 1) return false;
-
-    // Ensure token has a USD value for accurate comparison (except ADA)
-    if (token.symbol !== 'ADA' && !token.valueUsd) return false;
+    // Exclude single-quantity NFTs
+    if (token.decimals === 0 && balance === 1) {
+      return false;
+    }
 
     return true;
   };
@@ -100,6 +106,7 @@ const WalletOverview = () => {
       .filter(isValidToken)
       .map(token => {
         const valueInAda = getTokenValueInAda(token);
+        console.log(`Token ${token.symbol} value in ADA:`, valueInAda);
         return {
           name: trimTokenName(token.name || token.symbol),
           symbol: token.symbol,
@@ -118,12 +125,12 @@ const WalletOverview = () => {
     // Calculate total ADA value
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
-    // Prepare chart data (only include tokens with > 1% of total value)
-    const significantTokens = validTokens.filter(token =>
+    // Prepare chart data
+    const significantTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token =>
+    const otherTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) < 0.01
     );
 
