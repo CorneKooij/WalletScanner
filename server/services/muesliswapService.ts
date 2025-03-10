@@ -34,35 +34,38 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
     }
 
     const data = await response.json() as any[];
-    console.log('MuesliSwap API response:', data);
+    console.log('MuesliSwap tokens:', data);
 
-    // Process token prices
+    // Process token data
     if (Array.isArray(data)) {
       for (const token of data) {
-        if (token.price_ada && token.ticker) {
-          const priceInAda = Number(token.price_ada);
-          const symbol = token.ticker;
+        // Skip if no valid price_ada or ticker
+        if (!token.price_ada || !token.ticker) continue;
 
-          // Skip if no valid price or symbol
-          if (isNaN(priceInAda) || !symbol) continue;
+        const priceInAda = Number(token.price_ada);
+        if (isNaN(priceInAda)) continue;
 
-          prices.set(symbol, {
-            symbol,
-            priceAda: priceInAda,
-            priceUsd: priceInAda * adaUsdPrice
-          });
+        const symbol = token.ticker;
 
-          console.log(`Processed token ${symbol}:`, {
-            priceAda: priceInAda,
-            priceUsd: priceInAda * adaUsdPrice
-          });
-        }
+        // Calculate USD price based on ADA price
+        const priceInUsd = priceInAda * adaUsdPrice;
+
+        prices.set(symbol, {
+          symbol,
+          priceAda: priceInAda,
+          priceUsd: priceInUsd
+        });
+
+        console.log(`Token ${symbol} prices:`, {
+          priceAda: priceInAda,
+          priceUsd: priceInUsd
+        });
       }
     }
 
     return prices;
   } catch (error) {
-    console.error('Error fetching MuesliSwap prices:', error);
+    console.error('Error fetching token prices:', error);
     // Return a map with just ADA price if API fails
     const prices = new Map<string, TokenPrice>();
     prices.set('ADA', {

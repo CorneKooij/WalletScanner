@@ -53,15 +53,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const isLovelace = token.unit === 'lovelace';
                 const rawBalance = Number(token.quantity || 0);
 
-                await storage.createToken({
-                  walletId: wallet.id,
-                  name: token.name || 'Unknown Token',
-                  symbol: isLovelace ? 'ADA' : (token.symbol || 'UNKNOWN'),
-                  balance: String(rawBalance),
-                  valueUsd: tokenPrice ? rawBalance * tokenPrice.priceUsd : null,
-                  decimals: token.decimals || 0,
-                  unit: token.unit
-                });
+                // For ADA (lovelace), convert to ADA units and calculate USD value
+                if (isLovelace) {
+                  const adaBalance = rawBalance / 1_000_000;
+                  await storage.createToken({
+                    walletId: wallet.id,
+                    name: 'Cardano',
+                    symbol: 'ADA',
+                    balance: String(rawBalance), // Store raw lovelace amount
+                    valueUsd: adaBalance * adaPrice,
+                    decimals: 6,
+                    unit: token.unit
+                  });
+                } else {
+                  // For other tokens, use price in ADA to calculate USD value
+                  await storage.createToken({
+                    walletId: wallet.id,
+                    name: token.name || 'Unknown Token',
+                    symbol: token.symbol || 'UNKNOWN',
+                    balance: String(rawBalance),
+                    valueUsd: tokenPrice ? rawBalance * tokenPrice.priceAda * adaPrice : null,
+                    decimals: token.decimals || 0,
+                    unit: token.unit
+                  });
+                }
               }
             }
 
@@ -135,11 +150,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
 
-        // For non-ADA tokens, calculate USD value if price exists
+        // For non-ADA tokens, calculate USD value using ADA price
+        const valueInAda = price ? rawBalance * price.priceAda : 0;
         return {
           ...token,
           balance: String(rawBalance),
-          valueUsd: price ? rawBalance * price.priceUsd : null
+          valueUsd: valueInAda * adaPrice
         };
       });
 
