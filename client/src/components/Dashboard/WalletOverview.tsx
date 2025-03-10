@@ -9,7 +9,7 @@ interface Token {
   symbol: string;
   name: string;
   balance: string | number;
-  valueUsd?: number;
+  valueUsd?: number | null;
 }
 
 interface Transaction {
@@ -37,60 +37,46 @@ const WalletOverview = () => {
     '#D1D5DB'  // Gray (for Others)
   ]);
 
-  // Create and update token distribution chart
-  const createTokenDistributionChart = () => {
+  useEffect(() => {
     if (!tokenChartRef.current || !walletData?.tokens) return;
 
-    // Cleanup previous chart instance
+    // Cleanup previous chart
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
     }
 
-    // Calculate USD values for all tokens
-    const tokenValues: { [key: string]: { value: number, name: string } } = {};
+    // Calculate token values in USD for distribution
+    let tokens = walletData.tokens.map(token => ({
+      name: token.name || token.symbol,
+      symbol: token.symbol,
+      value: token.valueUsd || 0
+    }));
 
-    // Add ADA value first
-    if (walletData.balance.usd) {
-      tokenValues['ADA'] = {
-        value: walletData.balance.usd,
-        name: 'ADA'
-      };
-    }
+    // Sort tokens by value (descending)
+    tokens = tokens.sort((a, b) => b.value - a.value);
 
-    // Add other tokens
-    walletData.tokens.forEach(token => {
-      if (!token.symbol || token.symbol === 'ADA' || !token.valueUsd) return;
-      tokenValues[token.symbol] = {
-        value: token.valueUsd,
-        name: token.name || token.symbol
-      };
-    });
+    // Calculate total value for percentages
+    const totalValue = tokens.reduce((sum, token) => sum + token.value, 0);
 
-    // Calculate total value and filter significant tokens (>= 1% of total)
-    const totalValue = Object.values(tokenValues).reduce((sum, { value }) => sum + value, 0);
-    const significantTokens = Object.entries(tokenValues)
-      .filter(([, { value }]) => (value / totalValue) >= 0.01)
-      .sort(([, a], [, b]) => b.value - a.value);
-
-    // Calculate "Others" category
-    const otherTokens = Object.entries(tokenValues)
-      .filter(([, { value }]) => (value / totalValue) < 0.01);
-    const othersValue = otherTokens.reduce((sum, [, { value }]) => sum + value, 0);
+    // Separate significant tokens (>1% of total) and combine others
+    const significantTokens = tokens.filter(token => (token.value / totalValue) >= 0.01);
+    const otherTokens = tokens.filter(token => (token.value / totalValue) < 0.01);
+    const otherValue = otherTokens.reduce((sum, token) => sum + token.value, 0);
 
     // Prepare chart data
-    const labels = significantTokens.map(([, { name }]) => name);
-    const data = significantTokens.map(([, { value }]) => value);
+    const labels = [...significantTokens.map(t => t.name)];
+    const data = [...significantTokens.map(t => t.value)];
 
-    // Add "Others" category if it exists
-    if (othersValue > 0) {
+    // Add "Others" category if there are small tokens
+    if (otherValue > 0) {
       labels.push('Others');
-      data.push(othersValue);
+      data.push(otherValue);
     }
 
-    // Calculate percentages for labels
+    // Calculate percentages for display
     const percentages = data.map(value => Math.round((value / totalValue) * 100));
 
-    // Create chart
+    // Create new chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
@@ -116,17 +102,13 @@ const WalletOverview = () => {
                 size: 11
               },
               generateLabels: (chart) => {
-                const data = chart.data;
-                if (data.labels?.length && data.datasets.length) {
-                  return data.labels.map((label, i) => ({
-                    text: `${label} (${percentages[i]}%)`,
-                    fillStyle: chartColorsRef.current[i],
-                    hidden: false,
-                    lineWidth: 0,
-                    index: i
-                  }));
-                }
-                return [];
+                return labels.map((label, i) => ({
+                  text: `${label} (${percentages[i]}%)`,
+                  fillStyle: chartColorsRef.current[i],
+                  hidden: false,
+                  lineWidth: 0,
+                  index: i
+                }));
               }
             }
           },
@@ -142,17 +124,7 @@ const WalletOverview = () => {
         }
       }
     });
-  };
-
-  useEffect(() => {
-    if (walletData) {
-      createTokenDistributionChart();
-    }
   }, [walletData]);
-
-  if (!walletData) {
-    return null;
-  }
 
   // Get transaction icon and color based on type
   const getTransactionIcon = (type: string) => {
@@ -196,7 +168,11 @@ const WalletOverview = () => {
     return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
   };
 
-  const recentTransactions = walletData.transactions.slice(0, 3);
+  const recentTransactions = walletData?.transactions?.slice(0, 3) || [];
+
+  if (!walletData) {
+    return null;
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
