@@ -24,8 +24,9 @@ const WalletOverview = () => {
   const { walletData } = useWallet();
   const tokenChartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
+  const chartColorsRef = useRef<string[]>(['#2563EB', '#34D399', '#6366F1', '#EF4444', '#D1D5DB']);
 
-  // Convert token distribution to chart data
+  // Create and update token distribution chart
   const createTokenDistributionChart = () => {
     if (!tokenChartRef.current || !walletData?.tokens) return;
 
@@ -85,7 +86,6 @@ const WalletOverview = () => {
     // Create chart data
     const labels = ['ADA', ...sortedTokens.map(([symbol]) => symbol), 'Others'];
     const data = [percentages.ada, ...sortedTokens.map(([symbol]) => percentages[symbol.toLowerCase()]), percentages.other];
-    const colors = ['#2563EB', '#34D399', '#6366F1', '#EF4444', '#D1D5DB'];
 
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
@@ -93,7 +93,7 @@ const WalletOverview = () => {
         labels,
         datasets: [{
           data,
-          backgroundColor: colors,
+          backgroundColor: chartColorsRef.current,
           borderWidth: 0
         }]
       },
@@ -115,6 +115,13 @@ const WalletOverview = () => {
         }
       }
     });
+
+    // Store the generated data for the legend
+    return {
+      labels,
+      percentages,
+      colors: chartColorsRef.current.slice(0, labels.length)
+    };
   };
 
   useEffect(() => {
@@ -170,6 +177,7 @@ const WalletOverview = () => {
   };
 
   const recentTransactions = walletData.transactions.slice(0, 3);
+  const chartData = createTokenDistributionChart();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -226,24 +234,23 @@ const WalletOverview = () => {
         <div className="h-48 relative">
           <canvas ref={tokenChartRef} id="token-distribution-chart"></canvas>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-[#2563EB] rounded-full mr-2"></div>
-            <span>ADA ({walletData.tokenDistribution?.ada || 0}%)</span>
+        {chartData && (
+          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+            {chartData.labels.map((label, index) => (
+              <div key={label} className="flex items-center">
+                <div 
+                  className="w-3 h-3 rounded-full mr-2" 
+                  style={{ backgroundColor: chartData.colors[index] }}
+                />
+                <span>
+                  {label} ({index < chartData.labels.length - 1 ? 
+                    chartData.percentages[label.toLowerCase()] : 
+                    chartData.percentages.other}%)
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-[#34D399] rounded-full mr-2"></div>
-            <span>HOSKY ({walletData.tokenDistribution?.hosky || 0}%)</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-[#6366F1] rounded-full mr-2"></div>
-            <span>DJED ({walletData.tokenDistribution?.djed || 0}%)</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-gray-300 rounded-full mr-2"></div>
-            <span>Others ({walletData.tokenDistribution?.others || 0}%)</span>
-          </div>
-        </div>
+        )}
       </Card>
     </div>
   );
