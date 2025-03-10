@@ -41,8 +41,9 @@ const WalletOverview = () => {
     const validTokens = walletData.tokens
       .filter(token => {
         if (!token || !token.balance) return false;
-        if (token.symbol === 'ADA') return true;
-        // For non-ADA tokens, ensure they have a USD value
+        const rawBalance = Number(token.balance);
+        if (token.symbol === 'ADA') return rawBalance > 0;
+        // For non-ADA tokens, ensure they have a positive USD value
         return token.valueUsd !== null && token.valueUsd !== undefined && token.valueUsd > 0;
       })
       .map(token => {
@@ -51,14 +52,15 @@ const WalletOverview = () => {
         let displayAmount: string;
 
         if (isAda) {
-          // For ADA tokens, use the balance.ada value directly without any conversion
+          // For ADA tokens, use the balance.ada value directly
           const adaAmount = Number(walletData.balance.ada);
           displayAmount = `${adaAmount} ADA`;
-          valueInAda = adaAmount; // Use the same value for both display and calculations
+          valueInAda = adaAmount;
         } else {
           // For other tokens, use raw balance for display and USD value for ADA conversion
           const rawBalance = Number(token.balance);
           displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
+          // Convert USD value to ADA equivalent using current ADA price
           valueInAda = token.valueUsd && walletData.balance.adaPrice && walletData.balance.adaPrice > 0
             ? token.valueUsd / walletData.balance.adaPrice
             : 0;
@@ -90,13 +92,14 @@ const WalletOverview = () => {
     const chartData = significantTokens.map(token => ({
       name: token.name,
       symbol: token.symbol,
-      value: token.valueInAda, // Using the correct ADA value
+      value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
       displayAmount: token.displayAmount,
-      adaEquivalent: `₳${token.valueInAda}`, // Direct use of valueInAda for ADA tokens
+      adaEquivalent: `₳${token.valueInAda.toFixed(2)}`,
       usdValue: token.usdValue
     }));
 
+    // Add "Others" category if there are small-value tokens
     if (otherTokens.length > 0) {
       const othersValue = otherTokens.reduce((sum, token) => sum + token.valueInAda, 0);
       chartData.push({
@@ -105,7 +108,7 @@ const WalletOverview = () => {
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
-        adaEquivalent: `₳${othersValue}`,
+        adaEquivalent: `₳${othersValue.toFixed(2)}`,
         usdValue: formatADA(othersValue * (walletData.balance.adaPrice || 0))
       });
     }
