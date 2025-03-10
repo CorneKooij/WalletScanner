@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { formatADA, formatTokenAmount, shortenAddress } from '@/lib/formatUtils';
 import { ArrowDown, ArrowUp, Clipboard, ExternalLink, Search, Shuffle, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Tooltip } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Transaction types for filtering
 const TRANSACTION_TYPES = ['All', 'Received', 'Sent', 'Swaps', 'Staking', 'NFT Activity'];
@@ -29,19 +29,19 @@ const TransactionHistory = () => {
   }
 
   // Filter transactions based on search term and selected type
-  const filteredTransactions = Array.isArray(walletData.transactions) 
+  const filteredTransactions = Array.isArray(walletData.transactions)
     ? walletData.transactions.filter(tx => {
         if (!tx) return false;
-        
-        const matchesSearch = 
-          searchTerm === '' || 
+
+        const matchesSearch =
+          searchTerm === '' ||
           (tx.type && tx.type.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (tx.amount && tx.amount.toString().includes(searchTerm));
-        
-        const matchesType = 
-          selectedType === 'All' || 
+
+        const matchesType =
+          selectedType === 'All' ||
           (tx.type && tx.type.toLowerCase() === selectedType.toLowerCase());
-        
+
         return matchesSearch && matchesType;
       })
     : [];
@@ -49,7 +49,7 @@ const TransactionHistory = () => {
   // Paginate transactions
   const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / itemsPerPage));
   const paginatedTransactions = filteredTransactions.slice(
-    (currentPage - 1) * itemsPerPage, 
+    (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
@@ -62,7 +62,7 @@ const TransactionHistory = () => {
         label: 'Unknown'
       };
     }
-    
+
     switch (type.toLowerCase()) {
       case 'received':
         return {
@@ -108,9 +108,9 @@ const TransactionHistory = () => {
     if (!tx || !tx.amount) {
       return <span className="font-medium">₳0.00</span>;
     }
-    
+
     const symbol = tx.tokenSymbol || 'ADA';
-    
+
     if (tx.type === 'received' || tx.type === 'stake_reward') {
       return (
         <span className="text-[#34D399] font-medium">
@@ -130,7 +130,7 @@ const TransactionHistory = () => {
         </span>
       );
     }
-    
+
     // Default case for other transaction types
     if (symbol === 'ADA') {
       return <span className="font-medium">₳{formatTokenAmount(tx.amount, symbol)}</span>;
@@ -153,7 +153,7 @@ const TransactionHistory = () => {
       });
       return;
     }
-    
+
     try {
       navigator.clipboard.writeText(address);
       toast({
@@ -175,9 +175,9 @@ const TransactionHistory = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Transaction History</h2>
         <div className="relative">
-          <input 
-            type="text" 
-            placeholder="Search transactions" 
+          <input
+            type="text"
+            placeholder="Search transactions"
             className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -185,14 +185,14 @@ const TransactionHistory = () => {
           <Search className="h-5 w-5 text-gray-400 absolute left-2.5 top-1/2 transform -translate-y-1/2" />
         </div>
       </div>
-      
+
       <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
         {TRANSACTION_TYPES.map(type => (
           <button
             key={type}
             className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
-              selectedType === type 
-                ? 'bg-[#2563EB] text-white' 
+              selectedType === type
+                ? 'bg-[#2563EB] text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
             onClick={() => setSelectedType(type)}
@@ -201,7 +201,7 @@ const TransactionHistory = () => {
           </button>
         ))}
       </div>
-      
+
       <div className="overflow-x-auto">
         {paginatedTransactions.length > 0 ? (
           <table className="min-w-full">
@@ -235,23 +235,48 @@ const TransactionHistory = () => {
                       {getFormattedAmount(tx)}
                     </td>
                     <td className="py-3 pr-4 hidden sm:table-cell">
-                      <div className="flex items-center">
-                        <div 
-                          className="text-sm text-gray-600 truncate max-w-[150px]" 
-                          title={tx.fullAddress || tx.address || 'No address'}
-                        >
-                          {tx.address || 'No address'}
-                        </div>
-                        {(tx.fullAddress || tx.address) && (
-                          <button 
-                            className="ml-2 text-gray-400 hover:text-gray-600" 
-                            onClick={() => handleCopyAddress(tx.fullAddress || tx.address)}
-                            title="Copy full address"
-                          >
-                            <Clipboard className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center cursor-help">
+                              <div
+                                className="text-sm text-gray-600 truncate max-w-[150px]"
+                              >
+                                {tx.address || 'No address'}
+                              </div>
+                              {(tx.fullAddress || tx.address) && (
+                                <button
+                                  className="ml-2 text-gray-400 hover:text-gray-600"
+                                  onClick={() => handleCopyAddress(tx.fullAddress || tx.address)}
+                                  title="Copy full address"
+                                >
+                                  <Clipboard className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" align="start" className="max-w-[480px] p-4 space-y-2">
+                            <div>
+                              <p className="text-xs font-medium text-gray-500">Full Address</p>
+                              <p className="text-xs mt-1 font-mono break-all select-all w-full">
+                                {tx.fullAddress || tx.address || 'No address available'}
+                              </p>
+                            </div>
+                            {tx.explorerUrl && (
+                              <div className="pt-2 border-t border-gray-100">
+                                <a
+                                  href={tx.explorerUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-[#2563EB] hover:underline flex items-center"
+                                >
+                                  View on Explorer <ExternalLink className="h-3 w-3 ml-1" />
+                                </a>
+                              </div>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </td>
                     <td className="py-3 text-right">
                       {tx.explorerUrl ? (
@@ -267,27 +292,27 @@ const TransactionHistory = () => {
           </table>
         ) : (
           <div className="py-8 text-center text-gray-500">
-            {searchTerm || selectedType !== 'All' 
-              ? 'No transactions match your search criteria' 
+            {searchTerm || selectedType !== 'All'
+              ? 'No transactions match your search criteria'
               : 'No transactions found in this wallet'}
           </div>
         )}
       </div>
-      
+
       <div className="mt-4 flex justify-between items-center">
         <div className="text-sm text-gray-500">
           Showing {(currentPage - 1) * itemsPerPage + 1}-
           {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} transactions
         </div>
         <div className="flex space-x-2">
-          <button 
+          <button
             className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             Previous
           </button>
-          <button 
+          <button
             className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}

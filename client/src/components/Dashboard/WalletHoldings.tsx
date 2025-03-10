@@ -94,7 +94,7 @@ const WalletHoldings = () => {
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left" align="start" className="max-w-sm p-4 space-y-2">
+                  <TooltipContent side="left" align="start" className="max-w-[480px] p-4 space-y-2">
                     <div>
                       <p className="font-medium text-sm">{token.name || 'Unknown Token'}</p>
                       <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
@@ -102,7 +102,7 @@ const WalletHoldings = () => {
                     {token.unit && (
                       <div className="pt-2 border-t border-gray-100">
                         <p className="text-xs font-medium text-gray-500">Token ID</p>
-                        <p className="text-xs mt-1 font-mono break-all select-all">{token.unit}</p>
+                        <p className="text-xs mt-1 font-mono break-all select-all w-full">{token.unit}</p>
                       </div>
                     )}
                   </TooltipContent>
@@ -113,10 +113,10 @@ const WalletHoldings = () => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="text-right cursor-help">
-                      <div className="font-medium whitespace-nowrap">
+                      <div className="font-medium">
                         {token.symbol === 'ADA' ? '₳' : ''}{formatTokenAmount(token.balance || 0, token.symbol)}
                       </div>
-                      <div className="text-xs text-gray-500 whitespace-nowrap">
+                      <div className="text-xs text-gray-500">
                         ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
                       </div>
                     </div>
