@@ -29,8 +29,8 @@ const WalletOverview = () => {
     '#2563EB', // ADA Blue
     '#34D399', // Green
     '#6366F1', // Purple
-    '#F472B6', // Pink
     '#FB923C', // Orange
+    '#F472B6', // Pink
     '#FBBF24', // Yellow
     '#EC4899', // Hot Pink
     '#8B5CF6', // Violet
@@ -250,7 +250,7 @@ const WalletOverview = () => {
       {/* Token Distribution Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
-        <div className="h-72 relative"> {/* Increased height for better legend visibility */}
+        <div className="h-72 relative">
           <canvas ref={tokenChartRef} id="token-distribution-chart"></canvas>
         </div>
       </Card>

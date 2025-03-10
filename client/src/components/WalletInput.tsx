@@ -7,46 +7,62 @@ const WalletInput = () => {
   const { setWalletData, isLoading } = useWallet();
   const { toast } = useToast();
 
-  // Validate Cardano wallet address (basic validation)
-  const isValidWalletAddress = (address: string) => {
-    // Cardano addresses start with addr1 and are typically 98-103 characters long
-    const basicRegex = /^addr1[a-zA-Z0-9]{95,100}$/;
-    // But we also allow short handles for testing purposes
-    return basicRegex.test(address) || address.length > 3;
+  // Validate Cardano wallet address or handle
+  const isValidInput = (input: string) => {
+    // Handle validation
+    if (input.startsWith('$')) {
+      return input.length > 1; // At least one character after $
+    }
+
+    // Strip $ if present for handle validation
+    const handle = input.startsWith('$') ? input.slice(1) : input;
+
+    // Handle format (3+ characters)
+    if (handle.length >= 3 && !handle.includes(' ')) {
+      return true;
+    }
+
+    // Cardano address validation (basic)
+    const addressRegex = /^addr1[a-zA-Z0-9]{95,100}$/;
+    return addressRegex.test(input);
   };
 
   const handleLookup = async () => {
-    if (!walletId.trim()) {
+    const input = walletId.trim();
+
+    if (!input) {
       toast({
         title: "Error",
-        description: "Please enter a wallet ID or handle",
+        description: "Please enter a wallet address or handle",
         variant: "destructive",
       });
       return;
     }
 
-    if (!isValidWalletAddress(walletId)) {
+    if (!isValidInput(input)) {
       toast({
-        title: "Invalid Wallet Address",
-        description: "Please enter a valid Cardano wallet address or handle",
+        title: "Invalid Input",
+        description: "Please enter a valid Cardano address or handle",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const response = await fetch(`/api/wallet/${encodeURIComponent(walletId)}`);
-      
+      // If input starts with $, remove it before sending to API
+      const searchTerm = input.startsWith('$') ? input.slice(1) : input;
+      const response = await fetch(`/api/wallet/${encodeURIComponent(searchTerm)}`);
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to fetch wallet data");
       }
-      
+
       const data = await response.json();
       setWalletData(data);
-      
+
       toast({
-        title: "Wallet Found",
+        title: "Success",
         description: "Successfully loaded wallet data",
       });
     } catch (error) {
@@ -64,7 +80,7 @@ const WalletInput = () => {
         <input 
           type="text" 
           id="wallet-input" 
-          placeholder="Enter Cardano Wallet ID or Handle" 
+          placeholder="Enter Cardano address or $handle" 
           className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none transition-all"
           value={walletId}
           onChange={(e) => setWalletId(e.target.value)}
@@ -79,12 +95,13 @@ const WalletInput = () => {
         </button>
       </div>
       <div className="mt-1 flex items-center">
-        <p className="text-xs text-gray-500 mr-1">Example:</p>
-        <div 
-          className="text-xs text-gray-500 flex items-center" 
-          title="addr1q9u5n39xmgzwzfsxnkgqt3fragk32k4uv4qcwmza0hq2luyr2wfvwkxmp4j2mztw6jm2tmxwdrgxj3pwmcx4au4k5mqhtez9t"
-        >
-          addr1q9u5n39x...mqhtez9t
+        <p className="text-xs text-gray-500 mr-1">Examples:</p>
+        <div className="text-xs text-gray-500 flex items-center space-x-2">
+          <span title="addr1q9u5n39xmgzwzfsxnkgqt3fragk32k4uv4qcwmza0hq2luyr2wfvwkxmp4j2mztw6jm2tmxwdrgxj3pwmcx4au4k5mqhtez9t">
+            addr1q9u5n39x...mqhtez9t
+          </span>
+          <span>or</span>
+          <span>$charles</span>
         </div>
       </div>
     </div>
