@@ -48,21 +48,22 @@ const WalletOverview = () => {
       })
       .map(token => {
         const isAda = token.symbol === 'ADA';
-        let displayAmount: string;
         let valueInAda: number;
+        let displayAmount: string;
 
         if (isAda) {
-          // For ADA, use the balance.ada value which is already in ADA units
-          const adaAmount = Number(walletData.balance.ada);
-          displayAmount = `${adaAmount} ADA`;
-          valueInAda = adaAmount;
+          // Use raw balance for ADA value calculation
+          const rawBalance = Number(token.balance);
+          // Convert from lovelace to ADA
+          valueInAda = rawBalance / 1_000_000;
+          displayAmount = `${valueInAda} ADA`;
         } else {
-          // For other tokens, use their USD value to calculate ADA equivalent
           const rawBalance = Number(token.balance);
           displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
-          // Convert USD value to ADA using current ADA price
-          valueInAda = token.valueUsd && walletData.balance.adaPrice ? 
-            token.valueUsd / walletData.balance.adaPrice : 0;
+          // Convert USD value to ADA equivalent
+          valueInAda = token.valueUsd && walletData.balance.adaPrice && walletData.balance.adaPrice > 0
+            ? token.valueUsd / walletData.balance.adaPrice
+            : 0;
         }
 
         return {
