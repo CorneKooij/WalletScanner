@@ -5,6 +5,8 @@ import { formatADA, formatTokenAmount, shortenAddress } from '@/lib/formatUtils'
 import { ArrowDown, ArrowUp, Clipboard, ExternalLink, Search, Shuffle, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 // Transaction types for filtering
 const TRANSACTION_TYPES = ['All', 'Received', 'Sent', 'Swaps', 'Staking', 'NFT Activity'];
@@ -172,17 +174,26 @@ const TransactionHistory = () => {
 
   return (
     <Card className="lg:col-span-2 bg-white p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <h2 className="text-xl font-semibold">Transaction History</h2>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search transactions"
-            className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Search className="h-5 w-5 text-gray-400 absolute left-2.5 top-1/2 transform -translate-y-1/2" />
+        <div className="flex items-center gap-2 w-full md:w-auto max-w-md">
+          <div className="relative flex-1">
+            <Input
+              type="text"
+              placeholder="Search transactions"
+              className="pl-9 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          </div>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            onClick={() => setSearchTerm('')}
+          >
+            Clear
+          </Button>
         </div>
       </div>
 
