@@ -29,49 +29,42 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
     parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
     amount;
 
-  // Get token-specific decimals
+  // Get token-specific decimals and whether to apply decimal adjustment
   let decimals = 0;
+  let needsAdjustment = false;
+
   switch(symbol?.toUpperCase()) {
     case 'ADA':
     case 'LOVELACE':
-      decimals = 6; // ADA uses 6 decimals (1 ADA = 1,000,000 lovelace)
-      break;
-    case 'DJED':
-    case 'SHEN':
-      decimals = 6; // Stablecoins typically use 6 decimals
-      break;
-    case 'HOSKY':
-      decimals = 8; // HOSKY uses 8 decimals
+      decimals = 6;
+      needsAdjustment = true; // ADA needs adjustment (1 ADA = 1,000,000 lovelace)
       break;
     case 'IAGON':
-      decimals = 6; // IAGON uses 6 decimals
-      break;
-    case 'MIN':
     case 'WMT':
-      decimals = 6; // Other common tokens with 6 decimals
+    case 'MIN':
+    case 'DJED':
+    case 'SHEN':
+      decimals = 6;
+      needsAdjustment = true; // These tokens use 6 decimals adjustment
+      break;
+    case 'HOSKY':
+      decimals = 8;
+      needsAdjustment = true; // HOSKY uses 8 decimals adjustment
       break;
     default:
-      decimals = 6; // Default to 6 decimals for unknown tokens
+      decimals = 2; // Default to 2 decimals display, no adjustment needed
+      needsAdjustment = false;
   }
 
-  // Adjust amount based on decimals
-  if (decimals > 0) {
+  // Only adjust amount if the token needs decimal adjustment
+  if (needsAdjustment && decimals > 0) {
     numAmount = numAmount / Math.pow(10, decimals);
-  }
-
-  // Format the result with appropriate decimals
-  // Use token-specific decimal places
-  let displayDecimals = decimals;
-  if (numAmount >= 1000) {
-    displayDecimals = 2; // Use fewer decimals for large numbers
-  } else if (numAmount >= 1) {
-    displayDecimals = 4; // Use moderate decimals for medium numbers
   }
 
   // Format with appropriate decimal places
   return numAmount.toLocaleString(undefined, {
-    minimumFractionDigits: displayDecimals,
-    maximumFractionDigits: displayDecimals
+    minimumFractionDigits: decimals > 2 ? 2 : decimals,
+    maximumFractionDigits: decimals > 2 ? 2 : decimals
   });
 };
 
