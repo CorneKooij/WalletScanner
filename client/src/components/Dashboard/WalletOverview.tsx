@@ -69,7 +69,17 @@ const trimTokenName = (name: string, maxLength = 15) => {
 
   const getTokenValue = (token: Token) => {
     if (!token || !token.balance) return 0;
-    return Number(token.balance); // Balance is already converted in backend
+    const isAda = token.symbol === 'ADA';
+    const balance = Number(token.balance);
+
+    if (isAda) return balance; // ADA balance is already in ADA units
+
+    // For non-ADA tokens, convert to ADA equivalent using price data
+    if (token.valueUsd && walletData?.balance.adaPrice) {
+      return token.valueUsd / walletData.balance.adaPrice;
+    }
+
+    return 0; // If no price data available
   };
 
   useEffect(() => {
@@ -84,13 +94,16 @@ const trimTokenName = (name: string, maxLength = 15) => {
       .map(token => {
         const valueInAda = getTokenValue(token);
         const displayAmount = formatTokenAmount(token.balance, token.symbol);
+        const adaEquivalent = formatTokenAmount(valueInAda, 'ADA');
 
         return {
           name: trimTokenName(token.name || token.symbol),
           fullName: getFullTokenName(token.name || token.symbol),
           symbol: token.symbol,
           valueInAda,
-          displayAmount: `${displayAmount} ${token.symbol}`
+          displayAmount: `${displayAmount} ${token.symbol}`,
+          adaEquivalent: `₳${adaEquivalent}`,
+          usdValue: token.valueUsd ? formatADA(token.valueUsd) : '0.00'
         };
       })
       .filter(token => token.valueInAda > 0)
@@ -113,7 +126,8 @@ const trimTokenName = (name: string, maxLength = 15) => {
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
       displayAmount: token.displayAmount,
-      adaValue: formatTokenAmount(token.valueInAda, 'ADA')
+      adaEquivalent: token.adaEquivalent,
+      usdValue: token.usdValue
     }));
 
     if (otherTokens.length > 0) {
@@ -125,7 +139,8 @@ const trimTokenName = (name: string, maxLength = 15) => {
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
-        adaValue: formatTokenAmount(othersValue, 'ADA')
+        adaEquivalent: `₳${formatTokenAmount(othersValue, 'ADA')}`,
+        usdValue: formatADA(othersValue * (walletData?.balance.adaPrice || 0))
       });
     }
 
@@ -156,7 +171,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
               },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
-                  text: `${item.name} • ₳${item.adaValue}`,
+                  text: `${item.name} • ${item.adaEquivalent}`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -176,9 +191,10 @@ const trimTokenName = (name: string, maxLength = 15) => {
               label: (context) => {
                 const item = chartData[context.dataIndex];
                 return [
-                  `Symbol: ${item.symbol || 'Unknown'}`,
+                  `Symbol: ${item.symbol}`,
                   `Balance: ${item.displayAmount}`,
-                  `Value: ₳${item.adaValue}`,
+                  `Value: ${item.adaEquivalent}`,
+                  `USD: $${item.usdValue}`,
                   `Share: ${item.percentage.toFixed(1)}%`
                 ];
               }
