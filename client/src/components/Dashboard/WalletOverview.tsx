@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Card } from '@/components/ui/card';
-import { ArrowDown, ArrowUp, Shuffle, Loader2 } from 'lucide-react';
 import Chart from 'chart.js/auto';
 
 interface Token {
@@ -12,15 +11,6 @@ interface Token {
   valueUsd?: number | null;
   decimals?: number;
   unit?: string;
-}
-
-interface Transaction {
-  type: string;
-  amount: number;
-  date: string;
-  time: string;
-  tokenAmount?: number;
-  tokenSymbol?: string;
 }
 
 const WalletOverview = () => {
@@ -39,47 +29,30 @@ const WalletOverview = () => {
     '#D1D5DB'  // Gray (for Others)
   ]);
 
-const trimTokenName = (name: string, maxLength = 15) => {
-    if (!name) return 'Unknown';
-    const cleanName = name.replace(/[^\x20-\x7E]/g, '');
-    if (cleanName.length <= maxLength) return cleanName;
-    return `${cleanName.substring(0, maxLength)}...`;
-  };
+  const getTokenValue = (token: Token): { balance: number, valueInAda: number } => {
+    if (!token || !token.balance) return { balance: 0, valueInAda: 0 };
 
-  // Get full token name without truncation
-  const getFullTokenName = (name: string) => {
-    if (!name) return 'Unknown';
-    return name.replace(/[^\x20-\x7E]/g, '').trim();
-  };
-
-  const isValidToken = (token: Token) => {
-    if (!token || !token.balance) return false;
-    if (Number(token.balance) <= 0) return false;
-
-    if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) {
-      return false;
-    }
-
-    if (token.decimals === 0 && Number(token.balance) === 1) {
-      return false;
-    }
-
-    return true;
-  };
-
-  const getTokenValue = (token: Token) => {
-    if (!token || !token.balance) return 0;
+    const rawBalance = Number(token.balance);
     const isAda = token.symbol === 'ADA';
-    const balance = Number(token.balance);
 
-    if (isAda) return balance; // ADA balance is already in ADA units
-
-    // For non-ADA tokens, convert to ADA equivalent using price data
-    if (token.valueUsd && walletData?.balance.adaPrice) {
-      return token.valueUsd / walletData.balance.adaPrice;
+    // For ADA, convert from lovelace to ADA
+    if (isAda) {
+      const adaBalance = rawBalance / 1_000_000;
+      return {
+        balance: adaBalance,
+        valueInAda: adaBalance
+      };
     }
 
-    return 0; // If no price data available
+    // For other tokens, use USD price to calculate ADA equivalent
+    if (token.valueUsd && walletData?.balance.adaPrice && walletData.balance.adaPrice > 0) {
+      return {
+        balance: rawBalance,
+        valueInAda: token.valueUsd / walletData.balance.adaPrice
+      };
+    }
+
+    return { balance: rawBalance, valueInAda: 0 };
   };
 
   useEffect(() => {
@@ -90,23 +63,22 @@ const trimTokenName = (name: string, maxLength = 15) => {
     }
 
     const validTokens = walletData.tokens
-      .filter(isValidToken)
+      .filter(token => {
+        if (!token || !token.balance) return false;
+        const value = getTokenValue(token);
+        return value.valueInAda > 0;
+      })
       .map(token => {
-        const valueInAda = getTokenValue(token);
-        const displayAmount = formatTokenAmount(token.balance, token.symbol);
-        const adaEquivalent = formatTokenAmount(valueInAda, 'ADA');
-
+        const { balance, valueInAda } = getTokenValue(token);
         return {
-          name: trimTokenName(token.name || token.symbol),
-          fullName: getFullTokenName(token.name || token.symbol),
+          name: token.name || token.symbol,
           symbol: token.symbol,
+          balance,
           valueInAda,
-          displayAmount: `${displayAmount} ${token.symbol}`,
-          adaEquivalent: `₳${adaEquivalent}`,
+          displayAmount: formatTokenAmount(balance, token.symbol),
           usdValue: token.valueUsd ? formatADA(token.valueUsd) : '0.00'
         };
       })
-      .filter(token => token.valueInAda > 0)
       .sort((a, b) => b.valueInAda - a.valueInAda);
 
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
@@ -121,26 +93,24 @@ const trimTokenName = (name: string, maxLength = 15) => {
 
     const chartData = significantTokens.map(token => ({
       name: token.name,
-      fullName: token.fullName,
       symbol: token.symbol,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
-      displayAmount: token.displayAmount,
-      adaEquivalent: token.adaEquivalent,
+      displayAmount: `${token.displayAmount} ${token.symbol}`,
+      adaEquivalent: `₳${formatTokenAmount(token.valueInAda, 'ADA')}`,
       usdValue: token.usdValue
     }));
 
     if (otherTokens.length > 0) {
       const othersValue = otherTokens.reduce((sum, token) => sum + token.valueInAda, 0);
       chartData.push({
-        name: 'Others',
-        fullName: `Other Tokens (${otherTokens.length})`,
+        name: `Other Tokens (${otherTokens.length})`,
         symbol: 'OTHERS',
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
         adaEquivalent: `₳${formatTokenAmount(othersValue, 'ADA')}`,
-        usdValue: formatADA(othersValue * (walletData?.balance.adaPrice || 0))
+        usdValue: formatADA(othersValue * (walletData.balance.adaPrice || 0))
       });
     }
 
@@ -184,15 +154,11 @@ const trimTokenName = (name: string, maxLength = 15) => {
             enabled: true,
             position: 'nearest',
             callbacks: {
-              title: (items) => {
-                const item = chartData[items[0].dataIndex];
-                return item.fullName;
-              },
+              title: (items) => items[0] ? chartData[items[0].dataIndex].name : '',
               label: (context) => {
                 const item = chartData[context.dataIndex];
                 return [
-                  `Symbol: ${item.symbol}`,
-                  `Balance: ${item.displayAmount}`,
+                  `Amount: ${item.displayAmount}`,
                   `Value: ${item.adaEquivalent}`,
                   `USD: $${item.usdValue}`,
                   `Share: ${item.percentage.toFixed(1)}%`
@@ -209,68 +175,12 @@ const trimTokenName = (name: string, maxLength = 15) => {
               family: "'Inter', system-ui, sans-serif"
             },
             padding: 16,
-            bodySpacing: 8,
-            displayColors: false,
-            boxPadding: 8,
-            backgroundColor: 'rgba(255, 255, 255, 0.98)',
-            titleColor: '#000',
-            bodyColor: '#4B5563',
-            borderColor: '#E5E7EB',
-            borderWidth: 1,
-            cornerRadius: 8,
-            titleAlign: 'left',
-            bodyAlign: 'left',
-            boxWidth: 320,
-            boxHeight: 'auto',
-            titleMarginBottom: 10,
-            usePointStyle: true
+            displayColors: false
           }
         }
       }
     });
   }, [walletData, isLoading]);
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'received':
-        return {
-          bg: 'bg-blue-100',
-          icon: <ArrowUp className="h-4 w-4 text-[#2563EB]" />,
-          color: 'text-[#34D399]'
-        };
-      case 'sent':
-        return {
-          bg: 'bg-red-100',
-          icon: <ArrowDown className="h-4 w-4 text-[#EF4444]" />,
-          color: 'text-[#EF4444]'
-        };
-      case 'swap':
-        return {
-          bg: 'bg-purple-100',
-          icon: <Shuffle className="h-4 w-4 text-[#6366F1]" />,
-          color: 'text-[#6366F1]'
-        };
-      default:
-        return {
-          bg: 'bg-gray-100',
-          icon: <ArrowDown className="h-4 w-4 text-gray-500" />,
-          color: 'text-gray-500'
-        };
-    }
-  };
-
-  const formatAmount = (tx: Transaction) => {
-    if (!tx.amount) return '₳0.00';
-
-    if (tx.type === 'received') {
-      return `+₳${formatTokenAmount(tx.amount, 'ADA')}`;
-    } else if (tx.type === 'sent') {
-      return `-₳${formatTokenAmount(tx.amount, 'ADA')}`;
-    } else if (tx.type === 'swap') {
-      return `₳${formatTokenAmount(tx.amount, 'ADA')} → ${formatTokenAmount(tx.tokenAmount || 0, tx.tokenSymbol)} ${tx.tokenSymbol}`;
-    }
-    return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
-  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -283,7 +193,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
         </div>
         <div className="flex items-baseline">
           <span className="text-3xl font-bold">
-            ₳{Number(walletData?.balance.ada || 0)}
+            ₳{walletData?.balance.ada || '0'}
           </span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
@@ -303,7 +213,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
-          {walletData?.transactions?.slice(0, 3).map((tx: Transaction, index: number) => {
+          {walletData?.transactions?.slice(0, 3).map((tx, index) => {
             const txStyle = getTransactionIcon(tx.type);
             return (
               <div key={index} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
@@ -333,5 +243,48 @@ const trimTokenName = (name: string, maxLength = 15) => {
     </div>
   );
 };
+
+const getTransactionIcon = (type: string) => {
+  switch (type) {
+    case 'received':
+      return {
+        bg: 'bg-blue-100',
+        icon: <ArrowUp className="h-4 w-4 text-[#2563EB]" />,
+        color: 'text-[#34D399]'
+      };
+    case 'sent':
+      return {
+        bg: 'bg-red-100',
+        icon: <ArrowDown className="h-4 w-4 text-[#EF4444]" />,
+        color: 'text-[#EF4444]'
+      };
+    case 'swap':
+      return {
+        bg: 'bg-purple-100',
+        icon: <Shuffle className="h-4 w-4 text-[#6366F1]" />,
+        color: 'text-[#6366F1]'
+      };
+    default:
+      return {
+        bg: 'bg-gray-100',
+        icon: <ArrowDown className="h-4 w-4 text-gray-500" />,
+        color: 'text-gray-500'
+      };
+  }
+};
+
+const formatAmount = (tx: any) => {
+  if (!tx.amount) return '₳0.00';
+
+  if (tx.type === 'received') {
+    return `+₳${formatTokenAmount(tx.amount, 'ADA')}`;
+  } else if (tx.type === 'sent') {
+    return `-₳${formatTokenAmount(tx.amount, 'ADA')}`;
+  } else if (tx.type === 'swap') {
+    return `₳${formatTokenAmount(tx.amount, 'ADA')} → ${formatTokenAmount(tx.tokenAmount || 0, tx.tokenSymbol)} ${tx.tokenSymbol}`;
+  }
+  return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
+};
+
 
 export default WalletOverview;
