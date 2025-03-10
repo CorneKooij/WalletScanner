@@ -52,14 +52,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const tokenPrice = tokenPrices.get(token.symbol);
                 const isLovelace = token.unit === 'lovelace';
                 const rawBalance = Number(token.quantity || 0);
-                const balance = isLovelace ? rawBalance / 1_000_000 : rawBalance;
 
                 await storage.createToken({
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: isLovelace ? 'ADA' : (token.symbol || 'UNKNOWN'),
-                  balance: String(balance),
-                  valueUsd: tokenPrice ? balance * tokenPrice.priceUsd : null,
+                  balance: String(rawBalance), // Store raw balance
+                  valueUsd: tokenPrice ? (isLovelace ? rawBalance / 1_000_000 : rawBalance) * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
                 });
@@ -77,7 +76,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   await storage.createTransaction({
                     walletId: wallet.id,
                     type: txDetails.type || 'transfer',
-                    amount: String(amount),
+                    amount: String(amount), // Store converted amount for transactions
                     date: new Date(tx.blockTime * 1000),
                     address: txDetails.counterpartyAddress ?
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
@@ -95,12 +94,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (walletData.balance) {
               const rawBalance = Number(walletData.balance);
-              const balance = rawBalance / 1_000_000; // Convert from lovelace to ADA
-
               await storage.createBalanceHistory({
                 walletId: wallet.id,
                 date: new Date(),
-                balance: String(balance)
+                balance: String(rawBalance) // Store raw balance
               });
             }
           } else {
@@ -123,17 +120,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Update token values with current prices
-      const updatedTokens = tokens.map(token => ({
-        ...token,
-        valueUsd: tokenPrices.get(token.symbol)?.priceUsd 
-          ? Number(token.balance) * tokenPrices.get(token.symbol)!.priceUsd 
-          : null
-      }));
+      // Convert ADA balance when preparing response
+      const updatedTokens = tokens.map(token => {
+        const price = tokenPrices.get(token.symbol);
+        const isAda = token.symbol === 'ADA';
+        const rawBalance = Number(token.balance);
+        const balance = isAda ? rawBalance / 1_000_000 : rawBalance;
+
+        return {
+          ...token,
+          balance: String(balance), // Convert ADA balance for display
+          valueUsd: price ? balance * price.priceUsd : null
+        };
+      });
 
       // Find ADA token
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
       const adaBalance = adaToken ? adaToken.balance : '0';
+
+      // Convert balance history for response
+      const convertedHistory = history.map(h => ({
+        ...h,
+        balance: String(Number(h.balance) / 1_000_000) // Convert ADA balance for display
+      }));
 
       return res.json({
         address: wallet.address,
@@ -142,12 +151,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ada: adaBalance,
           usd: Number(adaBalance) * adaPrice,
           adaPrice,
-          percentChange: calculatePercentChange(history)
+          percentChange: calculatePercentChange(convertedHistory)
         },
         tokens: updatedTokens,
         transactions,
         nfts,
-        balanceHistory: history
+        balanceHistory: convertedHistory
       });
     } catch (error) {
       console.error('Error processing wallet request:', error);
