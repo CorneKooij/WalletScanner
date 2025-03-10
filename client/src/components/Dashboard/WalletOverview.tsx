@@ -70,15 +70,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
   const getTokenValue = (token: Token) => {
     if (!token || !token.balance) return 0;
 
-    if (token.symbol === 'ADA') {
-      return Number(token.balance);
-    }
-
-    if (token.valueUsd && walletData?.balance.usd) {
-      const adaPriceUsd = walletData.balance.usd / Number(walletData.balance.ada);
-      return token.valueUsd / adaPriceUsd;
-    }
-
+    // Values are already converted in the backend
     return Number(token.balance);
   };
 
@@ -256,6 +248,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
   const formatTransactionAmount = (tx: Transaction) => {
     if (!tx.amount) return '₳0.00';
 
+    // Values are already converted in the backend
     if (tx.type === 'received') {
       return `+₳${formatTokenAmount(tx.amount, 'ADA')}`;
     } else if (tx.type === 'sent') {
