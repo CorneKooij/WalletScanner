@@ -52,10 +52,14 @@ const WalletOverview = () => {
         let valueInAda: number;
 
         if (isAda) {
-          displayAmount = `${walletData.balance.ada} ADA`;
-          valueInAda = Number(walletData.balance.ada);
+          // For ADA, use the balance.ada value which is already in ADA units
+          const adaAmount = Number(walletData.balance.ada);
+          displayAmount = `${adaAmount} ADA`;
+          valueInAda = adaAmount;
         } else {
-          displayAmount = `${formatTokenAmount(token.balance, token.symbol)} ${token.symbol}`;
+          // For other tokens, use their USD value to calculate ADA equivalent
+          const rawBalance = Number(token.balance);
+          displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
           // Convert USD value to ADA using current ADA price
           valueInAda = token.valueUsd && walletData.balance.adaPrice ? 
             token.valueUsd / walletData.balance.adaPrice : 0;
@@ -103,7 +107,7 @@ const WalletOverview = () => {
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
         adaEquivalent: `₳${formatTokenAmount(othersValue, 'ADA')}`,
-        usdValue: formatADA(othersValue * (walletData.balance.adaPrice || 0)) //Corrected line
+        usdValue: formatADA(othersValue * (walletData.balance.adaPrice || 0))
       });
     }
 
