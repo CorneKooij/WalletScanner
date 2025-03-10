@@ -6,7 +6,7 @@ interface TokenPrice {
   priceUsd: number;
 }
 
-const MUESLISWAP_API_URL = 'https://api.muesliswap.com';
+const MUESLISWAP_API_URL = 'https://api.muesliswap.com/list';
 const COINGECKO_ADA_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd';
 
 export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
@@ -27,21 +27,21 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
       priceUsd: adaUsdPrice
     });
 
-    // Get MuesliSwap token prices
-    const response = await fetch(`${MUESLISWAP_API_URL}/markets`);
+    // Get token prices from MuesliSwap
+    const response = await fetch(MUESLISWAP_API_URL);
     if (!response.ok) {
       throw new Error(`MuesliSwap API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any[];
     console.log('MuesliSwap API response:', data);
 
-    // Process market data
+    // Process token prices
     if (Array.isArray(data)) {
-      for (const market of data) {
-        if (market.baseToken && market.lastPrice) {
-          const symbol = market.baseToken.ticker;
-          const priceInAda = Number(market.lastPrice);
+      for (const token of data) {
+        if (token.price_ada && token.ticker) {
+          const priceInAda = Number(token.price_ada);
+          const symbol = token.ticker;
 
           // Skip if no valid price or symbol
           if (isNaN(priceInAda) || !symbol) continue;
