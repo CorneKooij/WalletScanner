@@ -243,7 +243,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
     }
   };
 
-  const formatTransactionAmount = (tx: Transaction) => {
+  const formatAmount = (tx: Transaction) => {
     if (!tx.amount) return '₳0.00';
 
     if (tx.type === 'received') {
@@ -267,7 +267,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
         </div>
         <div className="flex items-baseline">
           <span className="text-3xl font-bold">
-            ₳{formatTokenAmount(walletData?.balance.ada || 0, 'ADA')}
+            ₳{Number(walletData?.balance.ada || 0)}
           </span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
@@ -301,7 +301,7 @@ const trimTokenName = (name: string, maxLength = 15) => {
                   </div>
                 </div>
                 <div className={txStyle.color + " font-medium"}>
-                  {formatTransactionAmount(tx)}
+                  {formatAmount(tx)}
                 </div>
               </div>
             );

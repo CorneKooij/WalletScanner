@@ -53,13 +53,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const isLovelace = token.unit === 'lovelace';
                 const rawBalance = Number(token.quantity || 0);
 
-                // Store raw balance without conversion
                 await storage.createToken({
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: isLovelace ? 'ADA' : (token.symbol || 'UNKNOWN'),
-                  balance: String(rawBalance), // Store raw lovelace value
-                  valueUsd: tokenPrice ? (isLovelace ? rawBalance / 1_000_000 : rawBalance) * tokenPrice.priceUsd : null,
+                  balance: String(rawBalance), // Store raw value without conversion
+                  valueUsd: null, // Don't store USD value, calculate it in response
                   decimals: token.decimals || 0,
                   unit: token.unit
                 });
@@ -98,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createBalanceHistory({
                 walletId: wallet.id,
                 date: new Date(),
-                balance: String(rawBalance) // Store raw lovelace value
+                balance: String(rawBalance) // Store raw value without conversion
               });
             }
           } else {
@@ -121,25 +120,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Convert raw values to ADA only at response time
+      // Convert raw values for display
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         const rawBalance = Number(token.balance);
         const isAda = token.symbol === 'ADA';
-        const displayBalance = isAda ? rawBalance / 1_000_000 : rawBalance;
+
+        if (isAda) {
+          const adaBalance = rawBalance / 1_000_000;
+          return {
+            ...token,
+            balance: String(adaBalance),
+            valueUsd: price ? adaBalance * price.priceUsd : null
+          };
+        }
 
         return {
           ...token,
-          balance: String(displayBalance),
-          valueUsd: price ? displayBalance * price.priceUsd : null
+          balance: String(rawBalance),
+          valueUsd: price ? rawBalance * price.priceUsd : null
         };
       });
 
-      // Use the already converted ADA balance
+      // Get ADA balance
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
       const adaBalance = adaToken ? adaToken.balance : '0';
 
-      // Convert history balances from lovelace to ADA
+      // Convert history from lovelace to ADA
       const convertedHistory = history.map(h => ({
         ...h,
         balance: String(Number(h.balance) / 1_000_000)
