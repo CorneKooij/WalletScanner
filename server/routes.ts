@@ -57,12 +57,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (walletData.tokens) {
               for (const token of walletData.tokens) {
                 const tokenPrice = tokenPrices.get(token.symbol);
+                const balance = token.symbol === 'ADA' 
+                  ? Number(token.quantity) / 1_000_000 // Convert lovelace to ADA
+                  : Number(token.quantity);
+
                 await storage.createToken({
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: token.symbol || 'UNKNOWN',
                   balance: token.quantity || '0',
-                  valueUsd: tokenPrice ? Number(token.quantity) * tokenPrice.priceUsd : null,
+                  valueUsd: tokenPrice ? balance * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
                 });
@@ -129,19 +133,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         if (price) {
+          // Convert balance for ADA (stored in lovelace)
+          const balance = token.symbol === 'ADA'
+            ? Number(token.balance) / 1_000_000
+            : Number(token.balance);
+
           return {
             ...token,
-            valueUsd: Number(token.balance) * price.priceUsd
+            balance: token.symbol === 'ADA' ? String(balance) : token.balance,
+            valueUsd: balance * price.priceUsd
           };
         }
         return token;
       });
 
+      // Find ADA token and convert from lovelace
+      const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
+      const adaBalance = adaToken ? adaToken.balance : '0';
+
       return res.json({
         address: wallet.address,
         handle: null,
         balance: {
-          ada: tokens.find(t => t.symbol === 'ADA')?.balance || '0',
+          ada: adaBalance,
           usd: updatedTokens.reduce((sum, token) => sum + (Number(token.valueUsd) || 0), 0),
           percentChange: calculatePercentChange(history)
         },

@@ -15,26 +15,30 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
       throw new Error(`MinSwap API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const prices = new Map<string, TokenPrice>();
 
     // Process pairs data
-    for (const pair of data.pairs) {
-      if (pair.baseToken.symbol && pair.quoteToken.symbol === 'ADA') {
-        prices.set(pair.baseToken.symbol, {
-          symbol: pair.baseToken.symbol,
-          priceAda: 1 / Number(pair.lastPrice),
-          priceUsd: (1 / Number(pair.lastPrice)) * data.cardanoUsdPrice
-        });
+    if (data.pairs) {
+      for (const pair of data.pairs) {
+        if (pair.baseToken?.symbol && pair.quoteToken?.symbol === 'ADA') {
+          prices.set(pair.baseToken.symbol, {
+            symbol: pair.baseToken.symbol,
+            priceAda: 1 / Number(pair.lastPrice || 0),
+            priceUsd: (1 / Number(pair.lastPrice || 0)) * (data.cardanoUsdPrice || 0)
+          });
+        }
       }
     }
 
     // Add ADA price
-    prices.set('ADA', {
-      symbol: 'ADA',
-      priceAda: 1,
-      priceUsd: data.cardanoUsdPrice
-    });
+    if (data.cardanoUsdPrice) {
+      prices.set('ADA', {
+        symbol: 'ADA',
+        priceAda: 1,
+        priceUsd: data.cardanoUsdPrice
+      });
+    }
 
     return prices;
   } catch (error) {
