@@ -57,8 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: isLovelace ? 'ADA' : (token.symbol || 'UNKNOWN'),
-                  balance: String(rawBalance), // Store raw value without conversion
-                  valueUsd: null, // Don't store USD value, calculate it in response
+                  balance: String(rawBalance),
+                  valueUsd: tokenPrice ? rawBalance * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
                 });
@@ -76,7 +76,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   await storage.createTransaction({
                     walletId: wallet.id,
                     type: txDetails.type || 'transfer',
-                    amount: String(amount), // Store converted amount for transactions
+                    amount: String(amount),
                     date: new Date(tx.blockTime * 1000),
                     address: txDetails.counterpartyAddress ?
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
@@ -97,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createBalanceHistory({
                 walletId: wallet.id,
                 date: new Date(),
-                balance: String(rawBalance) // Store raw value without conversion
+                balance: String(rawBalance)
               });
             }
           } else {
@@ -120,7 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Convert raw values for display
+      // Update token values with current prices
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         const rawBalance = Number(token.balance);
@@ -131,10 +131,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return {
             ...token,
             balance: String(adaBalance),
-            valueUsd: price ? adaBalance * price.priceUsd : null
+            valueUsd: adaBalance * adaPrice
           };
         }
 
+        // For non-ADA tokens, calculate USD value if price exists
         return {
           ...token,
           balance: String(rawBalance),
