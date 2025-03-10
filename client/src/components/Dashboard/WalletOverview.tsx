@@ -39,11 +39,17 @@ const WalletOverview = () => {
     '#D1D5DB'  // Gray (for Others)
   ]);
 
-  const trimTokenName = (name: string, maxLength = 15) => {
+const trimTokenName = (name: string, maxLength = 15) => {
     if (!name) return 'Unknown';
     const cleanName = name.replace(/[^\x20-\x7E]/g, '');
     if (cleanName.length <= maxLength) return cleanName;
     return `${cleanName.substring(0, maxLength)}...`;
+  };
+
+  // Get full token name without truncation
+  const getFullTokenName = (name: string) => {
+    if (!name) return 'Unknown';
+    return name.replace(/[^\x20-\x7E]/g, '').trim();
   };
 
   const isValidToken = (token: Token) => {
@@ -91,6 +97,7 @@ const WalletOverview = () => {
 
         return {
           name: trimTokenName(token.name || token.symbol),
+          fullName: getFullTokenName(token.name || token.symbol),
           symbol: token.symbol,
           valueInAda,
           balance: token.balance,
@@ -102,16 +109,17 @@ const WalletOverview = () => {
 
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
-    const significantTokens = validTokens.filter(token =>
+    const significantTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token =>
+    const otherTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) < 0.01
     );
 
     const chartData = significantTokens.map(token => ({
       name: token.name,
+      fullName: token.fullName,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
       displayAmount: token.displayAmount,
@@ -122,6 +130,7 @@ const WalletOverview = () => {
     if (othersValue > 0) {
       chartData.push({
         name: 'Others',
+        fullName: 'Other Tokens',
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
@@ -169,10 +178,10 @@ const WalletOverview = () => {
             callbacks: {
               label: (context) => {
                 const item = chartData[context.dataIndex];
-                const token = validTokens.find(t => t.name === item.name);
+                const token = validTokens.find(t => t.fullName === item.fullName);
 
                 return [
-                  `Token: ${token?.name || item.name} (${token?.symbol || 'Unknown'})`,
+                  `Token: ${item.fullName} (${token?.symbol || 'Unknown'})`,
                   `Amount: ${item.displayAmount}`,
                   `Value: ₳${item.adaValue}`,
                   `Share: ${item.percentage.toFixed(1)}%`
@@ -197,7 +206,11 @@ const WalletOverview = () => {
             bodyColor: '#4B5563',
             borderColor: '#E5E7EB',
             borderWidth: 1,
-            cornerRadius: 8
+            cornerRadius: 8,
+            bodyAlign: 'left',
+            titleAlign: 'left',
+            boxWidth: 'auto',
+            boxHeight: 'auto'
           }
         }
       }
