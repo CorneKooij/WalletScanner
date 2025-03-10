@@ -175,16 +175,16 @@ const TransactionHistory = () => {
   return (
     <Card className="lg:col-span-2 bg-white p-6">
       <div className="flex flex-col space-y-4 mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Transaction History</h2>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1 max-w-xl mx-auto w-full">
+        <div className="flex flex-row items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-xl">
             <Input
               type="text"
               placeholder="Search transactions"
-              className="pl-9 pr-4 w-full"
+              className="pl-9 pr-4"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -192,7 +192,7 @@ const TransactionHistory = () => {
           </div>
           <Button
             variant="outline"
-            className="sm:w-24"
+            className="w-24 h-10 shrink-0"
             onClick={() => setSearchTerm('')}
           >
             Clear

@@ -74,7 +74,8 @@ const WalletHoldings = () => {
         walletData.tokens.map((token: Token, index: number) => {
           const { bg, textColor, symbol } = getTokenDetails(token);
           const displayName = truncateText(token.name);
-          const displayId = token.unit ? truncateText(token.unit, 'id') : '';
+          // Only show unit for non-ADA tokens
+          const displayId = token.symbol !== 'ADA' && token.unit ? truncateText(token.unit, 'id') : '';
 
           return (
             <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
@@ -99,7 +100,7 @@ const WalletHoldings = () => {
                       <p className="font-medium text-sm">{token.name || 'Unknown Token'}</p>
                       <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
                     </div>
-                    {token.unit && (
+                    {token.symbol !== 'ADA' && token.unit && (
                       <div className="pt-2 border-t border-gray-100">
                         <p className="text-xs font-medium text-gray-500">Token ID</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
