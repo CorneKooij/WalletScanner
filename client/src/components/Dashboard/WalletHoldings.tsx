@@ -81,7 +81,7 @@ const WalletHoldings = () => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center min-w-0 max-w-[60%]">
+                    <div className="flex items-center min-w-0 max-w-[60%] cursor-help">
                       <div className={`w-8 h-8 ${bg} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
                         <span className={`${textColor} font-semibold`}>{symbol}</span>
                       </div>
@@ -94,12 +94,16 @@ const WalletHoldings = () => {
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-sm">
-                    <p className="font-medium">{token.name || 'Unknown Token'}</p>
+                  <TooltipContent side="left" align="start" className="max-w-sm p-4 space-y-2">
+                    <div>
+                      <p className="font-medium text-sm">{token.name || 'Unknown Token'}</p>
+                      <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
+                    </div>
                     {token.unit && (
-                      <p className="text-xs text-gray-500 mt-1 break-all">
-                        Policy ID: {token.unit}
-                      </p>
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs font-medium text-gray-500">Token ID</p>
+                        <p className="text-xs mt-1 font-mono break-all select-all">{token.unit}</p>
+                      </div>
                     )}
                   </TooltipContent>
                 </Tooltip>
@@ -108,7 +112,7 @@ const WalletHoldings = () => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="text-right">
+                    <div className="text-right cursor-help">
                       <div className="font-medium whitespace-nowrap">
                         {token.symbol === 'ADA' ? '₳' : ''}{formatTokenAmount(token.balance || 0, token.symbol)}
                       </div>
@@ -117,9 +121,16 @@ const WalletHoldings = () => {
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>Raw balance: {token.balance || '0'}</p>
-                    {token.symbol === 'ADA' && <p>1 ADA = 1,000,000 lovelace</p>}
+                  <TooltipContent side="left" align="end" className="p-4 space-y-2">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Raw Balance</p>
+                      <p className="text-sm font-mono mt-1">{token.balance || '0'}</p>
+                    </div>
+                    {token.symbol === 'ADA' && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
+                      </div>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
