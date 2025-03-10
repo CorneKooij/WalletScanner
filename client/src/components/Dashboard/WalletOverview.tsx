@@ -156,7 +156,7 @@ const WalletOverview = () => {
               },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
-                  text: `${item.name} (${item.displayAmount})`,
+                  text: `${item.name} • ₳${item.adaValue}`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -172,25 +172,32 @@ const WalletOverview = () => {
                 const token = validTokens.find(t => t.name === item.name);
 
                 return [
-                  `${item.name} (${token?.symbol || 'Unknown'})`,
+                  `Token: ${token?.name || item.name} (${token?.symbol || 'Unknown'})`,
                   `Amount: ${item.displayAmount}`,
                   `Value: ₳${item.adaValue}`,
                   `Share: ${item.percentage.toFixed(1)}%`
                 ];
               }
             },
-            padding: 12,
             titleFont: {
               size: 14,
-              weight: 'bold'
+              weight: 'bold',
+              family: "'Inter', system-ui, sans-serif"
             },
             bodyFont: {
-              size: 13
+              size: 13,
+              family: "'Inter', system-ui, sans-serif"
             },
+            padding: 16,
             bodySpacing: 8,
-            boxWidth: 400,
-            boxHeight: 'auto',
-            boxPadding: 8
+            displayColors: true,
+            boxPadding: 6,
+            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+            titleColor: '#000',
+            bodyColor: '#4B5563',
+            borderColor: '#E5E7EB',
+            borderWidth: 1,
+            cornerRadius: 8
           }
         }
       }
