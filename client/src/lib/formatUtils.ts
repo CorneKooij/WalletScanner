@@ -7,10 +7,10 @@
 export const formatADA = (value: number | string, decimals = 2): string => {
   // Convert string to number if needed
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+
   // Handle NaN or invalid values
   if (isNaN(numValue)) return '0.00';
-  
+
   return numValue.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
@@ -24,26 +24,34 @@ export const formatADA = (value: number | string, decimals = 2): string => {
  * @param decimals Optional override for decimal places
  * @returns Formatted token amount as string
  */
-export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decimals?: number): string => {
+export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): string => {
   // Convert to number
   let numAmount = typeof amount === 'string' ? Number(amount) : amount;
-  
-  // Set token-specific decimals if not provided
-  if (decimals === undefined) {
-    // ADA and stablecoins typically use 6 decimals in Cardano
-    if (symbol === 'ADA' || symbol === 'DJED' || symbol === 'USDA') {
-      decimals = 6;
-    } else {
-      // Other tokens typically use 0 decimals in Cardano
-      decimals = 0;
-    }
+
+  // Get token-specific decimals
+  let decimals = 0;
+  switch(symbol?.toUpperCase()) {
+    case 'ADA':
+    case 'LOVELACE':
+      decimals = 6; // ADA uses 6 decimals (1 ADA = 1,000,000 lovelace)
+      break;
+    case 'DJED':
+    case 'SHEN':
+      decimals = 6; // Stablecoins typically use 6 decimals
+      break;
+    case 'HOSKY':
+    case 'SNEK':
+      decimals = 8; // Some tokens use 8 decimals
+      break;
+    default:
+      decimals = 0; // Default to 0 decimals for unknown tokens
   }
-  
+
   // Adjust amount based on decimals
   if (decimals > 0) {
     numAmount = numAmount / Math.pow(10, decimals);
   }
-  
+
   // Format the result
   // Use more decimals for very small values
   const displayDecimals = numAmount < 0.01 && numAmount > 0 ? 6 : 2;

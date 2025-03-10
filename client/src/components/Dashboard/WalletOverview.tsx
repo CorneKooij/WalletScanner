@@ -1,9 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
-import { formatADA } from '@/lib/formatUtils';
+import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Card } from '@/components/ui/card';
 import { ArrowDown, ArrowUp, Shuffle } from 'lucide-react';
 import Chart from 'chart.js/auto';
+
+interface Token {
+  symbol: string;
+  balance: string | number;
+  valueUsd?: number;
+}
+
+interface Transaction {
+  type: string;
+  amount: number;
+  date: string;
+  time: string;
+  tokenAmount?: number;
+  tokenSymbol?: string;
+}
 
 const WalletOverview = () => {
   const { walletData } = useWallet();
@@ -19,17 +34,18 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
+    // Convert raw token balances to USD values
     const tokenDistributionData = {
-      ada: walletData.balance.ada,
-      hosky: walletData.tokens.find(t => t.symbol === 'HOSKY')?.balance || 0,
-      djed: walletData.tokens.find(t => t.symbol === 'DJED')?.balance || 0,
+      ada: parseFloat(formatTokenAmount(walletData.balance.ada, 'ADA')),
+      hosky: parseFloat(formatTokenAmount(walletData.tokens.find(t => t.symbol === 'HOSKY')?.balance || '0', 'HOSKY')),
+      djed: parseFloat(formatTokenAmount(walletData.tokens.find(t => t.symbol === 'DJED')?.balance || '0', 'DJED')),
       others: walletData.tokens
         .filter(t => !['ADA', 'HOSKY', 'DJED'].includes(t.symbol))
-        .reduce((sum, token) => sum + (token.valueUsd || 0), 0)
+        .reduce((sum, token) => sum + parseFloat(formatTokenAmount(token.balance, token.symbol)), 0)
     };
 
     const total = Object.values(tokenDistributionData).reduce((a, b) => a + b, 0);
-    
+
     // Calculate percentages
     const percentages = {
       ada: Math.round((tokenDistributionData.ada / total) * 100) || 0,
@@ -115,15 +131,15 @@ const WalletOverview = () => {
   };
 
   // Format transaction amount based on type
-  const formatTransactionAmount = (tx: any) => {
+  const formatTransactionAmount = (tx: Transaction) => {
     if (tx.type === 'received') {
-      return `+₳${formatADA(tx.amount)}`;
+      return `+₳${formatTokenAmount(tx.amount, 'ADA')}`;
     } else if (tx.type === 'sent') {
-      return `-₳${formatADA(tx.amount)}`;
+      return `-₳${formatTokenAmount(tx.amount, 'ADA')}`;
     } else if (tx.type === 'swap') {
-      return `₳${formatADA(tx.amount)} → ${tx.tokenAmount} ${tx.tokenSymbol}`;
+      return `₳${formatTokenAmount(tx.amount, 'ADA')} → ${formatTokenAmount(tx.tokenAmount || 0, tx.tokenSymbol || '')} ${tx.tokenSymbol}`;
     }
-    return `₳${formatADA(tx.amount)}`;
+    return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
   };
 
   const recentTransactions = walletData.transactions.slice(0, 3);
@@ -139,7 +155,7 @@ const WalletOverview = () => {
           </div>
         </div>
         <div className="flex items-baseline">
-          <span className="text-3xl font-bold">₳{formatADA(walletData.balance.ada)}</span>
+          <span className="text-3xl font-bold">₳{formatTokenAmount(walletData.balance.ada, 'ADA')}</span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
         <div className="text-gray-500 text-sm mt-1">≈ ${formatADA(walletData.balance.usd)} USD</div>
@@ -149,7 +165,7 @@ const WalletOverview = () => {
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
-          {recentTransactions.map((tx: any, index: number) => {
+          {recentTransactions.map((tx: Transaction, index: number) => {
             const txStyle = getTransactionIcon(tx.type);
             return (
               <div key={index} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">

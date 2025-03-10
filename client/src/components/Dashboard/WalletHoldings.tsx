@@ -4,6 +4,13 @@ import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Link } from 'wouter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+interface Token {
+  name: string;
+  symbol: string;
+  balance: string | number;
+  valueUsd?: number;
+}
+
 const WalletHoldings = () => {
   const { walletData } = useWallet();
 
@@ -19,11 +26,11 @@ const WalletHoldings = () => {
   }
 
   // Get token color and symbol based on token name
-  const getTokenDetails = (token: any) => {
+  const getTokenDetails = (token: Token) => {
     if (!token || !token.symbol) {
       return { bg: 'bg-gray-100', textColor: 'text-gray-500', symbol: '?' };
     }
-    
+
     const symbolMap: Record<string, { bg: string, textColor: string, symbol: string }> = {
       'ADA': { bg: 'bg-blue-100', textColor: 'text-[#2563EB]', symbol: '₳' },
       'HOSKY': { bg: 'bg-red-100', textColor: 'text-red-500', symbol: 'H' },
@@ -40,11 +47,11 @@ const WalletHoldings = () => {
   };
 
   // Function to display token balance with proper formatting
-  const getFormattedBalance = (token: any): string => {
+  const getFormattedBalance = (token: Token): string => {
     if (!token || token.balance === undefined || token.balance === null) {
       return '0';
     }
-    
+
     try {
       return formatTokenAmount(token.balance, token.symbol);
     } catch (error) {
@@ -56,9 +63,9 @@ const WalletHoldings = () => {
   return (
     <Card className="bg-white p-6">
       <h2 className="text-xl font-semibold mb-6">Token Holdings</h2>
-      
+
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 0 ? (
-        walletData.tokens.map((token, index) => {
+        walletData.tokens.map((token: Token, index: number) => {
           const { bg, textColor, symbol } = getTokenDetails(token);
           return (
             <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
@@ -97,7 +104,7 @@ const WalletHoldings = () => {
           No tokens found in this wallet
         </div>
       )}
-      
+
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 5 && (
         <Link href="/holdings" className="mt-4 w-full py-2 text-sm font-medium text-[#2563EB] border border-[#2563EB] rounded-lg hover:bg-blue-50 transition-colors text-center block">
           View All Tokens
