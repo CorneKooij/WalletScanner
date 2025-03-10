@@ -39,6 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!wallet || isStaleData(wallet.lastUpdated)) {
         try {
           const walletData = await getWalletInfo(address);
+          console.log('Raw wallet data:', JSON.stringify(walletData, null, 2));
 
           if (!wallet) {
             wallet = await storage.createWallet({
@@ -57,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: isLovelace ? 'ADA' : (token.symbol || 'UNKNOWN'),
-                  balance: String(rawBalance), // Store raw balance without conversion
+                  balance: String(rawBalance), // Store raw value, unconverted
                   valueUsd: tokenPrice ? (isLovelace ? rawBalance / 1_000_000 : rawBalance) * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
@@ -97,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createBalanceHistory({
                 walletId: wallet.id,
                 date: new Date(),
-                balance: String(rawBalance) // Store raw balance without conversion
+                balance: String(rawBalance) // Store raw value, unconverted
               });
             }
           } else {
@@ -123,9 +124,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert values for response
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
-        const isAda = token.symbol === 'ADA';
         const rawBalance = Number(token.balance);
+        const isAda = token.symbol === 'ADA';
+
+        // Only convert ADA/lovelace balance here, at the last step
         const balance = isAda ? rawBalance / 1_000_000 : rawBalance;
+
+        console.log('Processing token:', {
+          symbol: token.symbol,
+          isAda,
+          rawBalance,
+          convertedBalance: balance
+        });
 
         return {
           ...token,
@@ -134,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      // Find ADA token and extract its balance
+      // Get ADA balance for the response
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
       const adaBalance = adaToken ? adaToken.balance : '0';
 
