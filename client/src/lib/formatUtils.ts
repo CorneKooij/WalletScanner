@@ -31,42 +31,27 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
 
   if (isNaN(numAmount)) return '0';
 
-  // Default decimals for different tokens
-  const tokenDecimals: Record<string, number> = {
-    'ADA': 6,      // 1 ADA = 1,000,000 lovelace
-    'TALOS': 6,    // Known to have 6 decimals
-    'CHARLES': 6,  // Known to have 6 decimals
-    'HONEY': 6,    // Known to have 6 decimals
-    'MIN': 6,      // Known to have 6 decimals
-    'IAG': 6       // Known to have 6 decimals
-  };
-
-  const decimals = tokenDecimals[symbol] || 6; // Default to 6 if not specified
-
-  // Adjust the amount based on decimals
-  const adjustedAmount = numAmount / Math.pow(10, decimals);
-
-  // Format based on the adjusted amount
-  if (Math.abs(adjustedAmount) < 0.000001) {
+  // Format based on the amount value
+  if (Math.abs(numAmount) < 0.000001) {
     // Very small numbers in scientific notation
-    return adjustedAmount.toExponential(2);
-  } else if (Math.abs(adjustedAmount) < 0.01) {
+    return numAmount.toExponential(2);
+  } else if (Math.abs(numAmount) < 0.01) {
     // Small numbers with more decimals
-    return adjustedAmount.toFixed(6);
-  } else if (Math.abs(adjustedAmount) < 1) {
+    return numAmount.toFixed(6);
+  } else if (Math.abs(numAmount) < 1) {
     // Numbers less than 1
-    return adjustedAmount.toFixed(4);
-  } else if (Math.abs(adjustedAmount) < 1000) {
+    return numAmount.toFixed(4);
+  } else if (Math.abs(numAmount) < 1000) {
     // Regular numbers
-    return adjustedAmount.toLocaleString(undefined, {
+    return numAmount.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
   } else {
     // Large numbers
-    return adjustedAmount.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+    return numAmount.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     });
   }
 };
