@@ -17,41 +17,67 @@ const logApiCall = (method: string, ...args: any[]) => {
   console.log(`[Blockfrost API] Calling ${method} with args:`, ...args);
 };
 
+/**
+ * Resolves an ADA handle to its corresponding address
+ */
+async function resolveHandle(handle: string): Promise<string> {
+  try {
+    console.log('[Blockfrost] Resolving handle:', handle);
+
+    // Convert handle to hex
+    const handleBytes = Buffer.from(handle);
+    const handleHex = handleBytes.toString('hex');
+    const assetId = `${ADA_HANDLE_POLICY_ID}${handleHex}`;
+
+    console.log('[Blockfrost] Looking up asset:', assetId);
+
+    // Get handle asset info
+    const handleInfo = await blockfrost.assetsById(assetId);
+    if (!handleInfo) {
+      throw new Error('Handle not found');
+    }
+
+    // Get the latest transaction for this handle
+    const txs = await blockfrost.assetsTransactions(assetId);
+    if (!txs || txs.length === 0) {
+      throw new Error('No transactions found for handle');
+    }
+
+    // Get the latest transaction details
+    const tx = await blockfrost.txsUtxos(txs[0].tx_hash);
+    if (!tx || !tx.outputs || tx.outputs.length === 0) {
+      throw new Error('No outputs found in handle transaction');
+    }
+
+    // Find the output containing the handle
+    const handleOutput = tx.outputs.find(output => 
+      output.amount.some(amt => amt.unit === assetId)
+    );
+
+    if (!handleOutput || !handleOutput.address) {
+      throw new Error('Handle owner address not found');
+    }
+
+    console.log('[Blockfrost] Resolved handle to address:', handleOutput.address);
+    return handleOutput.address;
+  } catch (error) {
+    console.error('[Blockfrost] Error resolving handle:', error);
+    throw error;
+  }
+}
+
 export async function getWalletInfo(address: string, isHandle = false) {
   try {
     logApiCall('getWalletInfo', address, isHandle);
 
     let resolvedAddress = address;
+    let handle = null;
 
     // If it's a handle, resolve it to an address
     if (isHandle) {
       try {
-        console.log('[Blockfrost] Resolving handle:', address);
-        // Convert handle to hex and append to policy ID
-        const handleHex = Buffer.from(address).toString('hex');
-        const assetId = `${ADA_HANDLE_POLICY_ID}${handleHex}`;
-        console.log('[Blockfrost] Looking up asset:', assetId);
-
-        // Get handle asset info
-        const handleInfo = await blockfrost.assetsById(assetId);
-        if (!handleInfo) {
-          throw new Error('Handle not found');
-        }
-
-        // Get transactions for this handle
-        const txs = await blockfrost.assetsTransactions(assetId);
-        if (!txs || txs.length === 0) {
-          throw new Error('No transactions found for handle');
-        }
-
-        // Get the first transaction output (handle owner)
-        const tx = await blockfrost.txsUtxos(txs[0].tx_hash);
-        if (!tx || !tx.outputs || tx.outputs.length === 0) {
-          throw new Error('No outputs found in handle transaction');
-        }
-
-        resolvedAddress = tx.outputs[0].address;
-        console.log('[Blockfrost] Resolved handle to address:', resolvedAddress);
+        handle = address;
+        resolvedAddress = await resolveHandle(address);
       } catch (error) {
         console.error('[Blockfrost] Error resolving handle:', error);
         throw new Error('Handle not found or invalid');
@@ -67,11 +93,9 @@ export async function getWalletInfo(address: string, isHandle = false) {
       count: 20,
       order: 'desc'
     });
-    console.log('[Blockfrost] Found transactions:', transactions.length);
 
     // Get asset balances using UTXO information
     const utxos = await blockfrost.addressesUtxos(resolvedAddress);
-    console.log('[Blockfrost] Found UTXOs:', utxos.length);
 
     // Aggregate token amounts from UTXOs
     const tokenMap = new Map<string, string>();
@@ -83,7 +107,7 @@ export async function getWalletInfo(address: string, isHandle = false) {
       });
     });
 
-    // Get token metadata for each token
+    // Process tokens with metadata
     const tokens = [];
     for (const [unit, quantity] of tokenMap.entries()) {
       if (unit === 'lovelace') {
@@ -99,8 +123,6 @@ export async function getWalletInfo(address: string, isHandle = false) {
 
       try {
         const metadata = await blockfrost.assetsById(unit);
-        console.log(`[Blockfrost] Metadata for ${unit}:`, metadata);
-
         const policyId = unit.slice(0, 56);
         const assetNameHex = unit.slice(56);
 
@@ -132,16 +154,16 @@ export async function getWalletInfo(address: string, isHandle = false) {
       }
     }
 
-    // Format the response
+    // Return formatted response
     return {
       address: resolvedAddress,
-      handle: isHandle ? address : null,
+      handle: isHandle ? handle : null,
       tokens,
       transactions: transactions.map(tx => ({
         hash: tx.tx_hash,
         blockHeight: tx.block_height,
         blockTime: tx.block_time,
-      })),
+      }))
     };
   } catch (error: any) {
     console.error('[Blockfrost] Error in getWalletInfo:', error);

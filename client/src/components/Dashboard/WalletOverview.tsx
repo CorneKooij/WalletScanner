@@ -54,55 +54,41 @@ const WalletOverview = () => {
     }
 
     // Get ADA balance in native units (lovelace)
-    const adaBalance = BigInt(walletData.balance.ada || 0);
+    const adaBalanceRaw = BigInt(walletData.balance.ada || 0);
+    const adaBalance = Number(adaBalanceRaw) / 1_000_000; // Convert to ADA
 
-    // Calculate total value including ADA and all tokens
-    let tokenData = [];
-
-    // Add ADA first
-    tokenData.push({
-      name: 'ADA',
-      balance: adaBalance,
-      symbol: 'ADA',
-      valueUsd: walletData.balance.usd
-    });
-
-    // Add other tokens
-    walletData.tokens
-      .filter(token => token.symbol !== 'ADA' && token.balance)
-      .forEach(token => {
-        tokenData.push({
+    // Calculate total balance and prepare token data
+    const tokenData = walletData.tokens
+      .filter(token => token.balance && Number(token.balance) > 0)
+      .map(token => {
+        const balance = Number(token.balance);
+        return {
           name: trimTokenName(token.name || token.symbol),
-          balance: BigInt(token.balance.toString()),
+          balance: balance,
           symbol: token.symbol,
-          valueUsd: token.valueUsd
-        });
+          valueUsd: token.valueUsd || 0
+        };
       });
 
-    // Sort tokens by USD value
-    tokenData = tokenData.sort((a, b) => (b.valueUsd || 0) - (a.valueUsd || 0));
+    // Sort tokens by USD value (if available) or balance
+    tokenData.sort((a, b) => b.valueUsd - a.valueUsd || b.balance - a.balance);
 
     // Calculate total USD value
-    const totalValue = tokenData.reduce((sum, token) => sum + (token.valueUsd || 0), 0);
+    const totalValue = tokenData.reduce((sum, token) => sum + token.valueUsd, 0);
 
     // Prepare chart data (only include tokens with > 1% of total value)
-    const significantTokens = tokenData.filter(token =>
-      ((token.valueUsd || 0) / totalValue) >= 0.01
-    );
+    const significantTokens = tokenData.filter(token => token.valueUsd / totalValue >= 0.01);
+    const otherTokens = tokenData.filter(token => token.valueUsd / totalValue < 0.01);
 
-    const otherTokens = tokenData.filter(token =>
-      ((token.valueUsd || 0) / totalValue) < 0.01
-    );
-
-    // Calculate percentages
+    // Calculate chart data
     const chartData = significantTokens.map(token => ({
       name: token.name,
-      value: token.valueUsd || 0,
-      percentage: ((token.valueUsd || 0) / totalValue * 100)
+      value: token.valueUsd,
+      percentage: (token.valueUsd / totalValue * 100)
     }));
 
     // Add "Others" category if needed
-    const othersValue = otherTokens.reduce((sum, token) => sum + (token.valueUsd || 0), 0);
+    const othersValue = otherTokens.reduce((sum, token) => sum + token.valueUsd, 0);
     if (othersValue > 0) {
       chartData.push({
         name: 'Others',
