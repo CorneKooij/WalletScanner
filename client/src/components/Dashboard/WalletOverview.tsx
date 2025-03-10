@@ -6,11 +6,12 @@ import { ArrowDown, ArrowUp, Shuffle, Loader2 } from 'lucide-react';
 import Chart from 'chart.js/auto';
 
 interface Token {
-  symbol: string;
   name: string;
+  symbol: string;
   balance: string | number;
   valueUsd?: number | null;
   decimals?: number;
+  unit?: string;
 }
 
 interface Transaction {
@@ -49,9 +50,12 @@ const WalletOverview = () => {
   // Convert token amount to ADA equivalent
   const getTokenValueInAda = (token: Token) => {
     if (!token || !token.balance) return 0;
+
+    // For ADA, convert from lovelace to ADA
     if (token.symbol === 'ADA') {
-      return Number(token.balance) / 1_000_000; // Convert lovelace to ADA
+      return Number(token.balance) / 1_000_000;
     }
+
     // For other tokens, use USD value to calculate ADA equivalent
     if (token.valueUsd && walletData?.balance.usd) {
       const adaPrice = walletData.balance.usd / (Number(walletData.balance.ada) / 1_000_000);
@@ -62,11 +66,18 @@ const WalletOverview = () => {
 
   // Check if token is a valid Cardano token (not NFT or handle)
   const isValidToken = (token: Token) => {
-    if (!token) return false;
-    // Exclude NFTs (usually have decimals = 0 and balance = 1)
-    if (token.decimals === 0 && Number(token.balance) === 1) return false;
-    // Exclude handles
-    if (token.name?.toLowerCase().includes('handle')) return false;
+    if (!token || !token.balance) return false;
+
+    // Exclude empty or zero balance tokens
+    const balance = Number(token.balance);
+    if (balance <= 0) return false;
+
+    // Exclude handles (policy ID check)
+    if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) return false;
+
+    // Only exclude NFTs if they have both decimals=0 and balance=1
+    if (token.decimals === 0 && balance === 1) return false;
+
     return true;
   };
 
@@ -81,24 +92,32 @@ const WalletOverview = () => {
     // Filter and process valid tokens
     const validTokens = walletData.tokens
       .filter(isValidToken)
-      .map(token => ({
-        name: trimTokenName(token.name || token.symbol),
-        symbol: token.symbol,
-        valueInAda: getTokenValueInAda(token),
-        balance: token.balance
-      }))
+      .map(token => {
+        const valueInAda = getTokenValueInAda(token);
+        return {
+          name: trimTokenName(token.name || token.symbol),
+          symbol: token.symbol,
+          valueInAda,
+          balance: token.balance,
+          displayValue: token.symbol === 'ADA' 
+            ? formatTokenAmount(Number(token.balance) / 1_000_000, 'ADA')
+            : formatTokenAmount(token.balance, token.symbol)
+        };
+      })
       .filter(token => token.valueInAda > 0)
       .sort((a, b) => b.valueInAda - a.valueInAda);
+
+    console.log('Valid tokens for chart:', validTokens);
 
     // Calculate total ADA value
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
     // Prepare chart data (only include tokens with > 1% of total value)
-    const significantTokens = validTokens.filter(token =>
+    const significantTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token =>
+    const otherTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) < 0.01
     );
 
@@ -106,7 +125,9 @@ const WalletOverview = () => {
     const chartData = significantTokens.map(token => ({
       name: token.name,
       value: token.valueInAda,
-      percentage: (token.valueInAda / totalValue * 100)
+      percentage: (token.valueInAda / totalValue * 100),
+      displayValue: token.displayValue,
+      symbol: token.symbol
     }));
 
     // Add "Others" category if needed
@@ -115,7 +136,9 @@ const WalletOverview = () => {
       chartData.push({
         name: 'Others',
         value: othersValue,
-        percentage: (othersValue / totalValue * 100)
+        percentage: (othersValue / totalValue * 100),
+        displayValue: `₳${formatTokenAmount(othersValue, 'ADA')}`,
+        symbol: 'OTHERS'
       });
     }
 
@@ -144,9 +167,7 @@ const WalletOverview = () => {
               font: { size: 11 },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
-                  text: item.name === 'Others'
-                    ? `${item.name} (₳${formatTokenAmount(item.value, 'ADA')})`
-                    : `${item.name} (₳${formatTokenAmount(item.value, 'ADA')} • ${item.percentage.toFixed(1)}%)`,
+                  text: `${item.name} (${item.displayValue} • ${item.percentage.toFixed(1)}%)`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -159,11 +180,7 @@ const WalletOverview = () => {
             callbacks: {
               label: (context) => {
                 const item = chartData[context.dataIndex];
-                const token = validTokens.find(t => t.name === item.name);
-                if (item.name === 'Others') {
-                  return `Others: ₳${formatTokenAmount(item.value, 'ADA')} (${item.percentage.toFixed(1)}%)`;
-                }
-                return `${item.name}: ${token ? formatTokenAmount(token.balance, token.symbol) : ''}\n≈ ₳${formatTokenAmount(item.value, 'ADA')} (${item.percentage.toFixed(1)}%)`;
+                return `${item.name}: ${item.displayValue}\n≈ ₳${formatTokenAmount(item.value, 'ADA')} (${item.percentage.toFixed(1)}%)`;
               }
             }
           }
@@ -171,26 +188,6 @@ const WalletOverview = () => {
       }
     });
   }, [walletData, isLoading]);
-
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="bg-white p-6 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
-        </Card>
-        <Card className="bg-white p-6 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
-        </Card>
-        <Card className="bg-white p-6 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
-        </Card>
-      </div>
-    );
-  }
-
-  if (!walletData) {
-    return null;
-  }
 
   // Get transaction icon and color based on type
   const getTransactionIcon = (type: string) => {
@@ -243,21 +240,21 @@ const WalletOverview = () => {
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-gray-500 font-medium">Total Balance</h2>
           <div className="bg-[#34D399]/10 text-[#34D399] text-sm font-medium px-2 py-1 rounded">
-            +{walletData.balance.percentChange}% ↑
+            +{walletData?.balance.percentChange}% ↑
           </div>
         </div>
         <div className="flex items-baseline">
-          <span className="text-3xl font-bold">₳{formatTokenAmount(walletData.balance.ada, 'ADA')}</span>
+          <span className="text-3xl font-bold">₳{formatTokenAmount(Number(walletData?.balance.ada || 0) / 1_000_000, 'ADA')}</span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
-        <div className="text-gray-500 text-sm mt-1">≈ ${formatADA(walletData.balance.usd)} USD</div>
+        <div className="text-gray-500 text-sm mt-1">≈ ${formatADA(walletData?.balance.usd || 0)} USD</div>
       </Card>
 
       {/* Recent Activity Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
-          {recentTransactions.map((tx: Transaction, index: number) => {
+          {walletData?.transactions?.slice(0, 3).map((tx: Transaction, index: number) => {
             const txStyle = getTransactionIcon(tx.type);
             return (
               <div key={index} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
