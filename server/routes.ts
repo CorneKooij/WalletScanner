@@ -66,16 +66,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     unit: token.unit
                   });
                 } else {
-                  // For other tokens, apply decimals and calculate USD value using price in ADA
-                  const decimals = token.decimals || 6; // Default to 6 decimals if not specified
-                  const adjustedBalance = rawBalance / Math.pow(10, decimals);
+                  // For other tokens, only adjust specific ones
+                  const tokenSymbol = token.symbol || 'UNKNOWN';
+                  const shouldAdjustDecimals = ['IAG'].includes(tokenSymbol);
+                  const decimals = token.decimals || 6;
 
                   await storage.createToken({
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
-                    symbol: token.symbol || 'UNKNOWN',
+                    symbol: tokenSymbol,
                     balance: String(rawBalance), // Store raw amount
-                    valueUsd: tokenPrice ? adjustedBalance * tokenPrice.priceAda * adaPrice : null,
+                    valueUsd: tokenPrice ? 
+                      (shouldAdjustDecimals ? 
+                        (rawBalance / Math.pow(10, decimals)) * tokenPrice.priceAda * adaPrice :
+                        rawBalance * tokenPrice.priceAda * adaPrice) : 
+                      null,
                     decimals: decimals,
                     unit: token.unit
                   });

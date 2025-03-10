@@ -18,9 +18,9 @@ export const formatADA = (value: number | string, decimals = 2): string => {
 };
 
 /**
- * Formats token amount based on the token's decimal places
+ * Formats token amount based on the token's requirements
  * @param amount The raw token amount (string or number)
- * @param symbol The token symbol to determine decimals
+ * @param symbol The token symbol to determine formatting
  * @returns Formatted token amount as string
  */
 export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): string => {
@@ -31,28 +31,40 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
 
   if (isNaN(numAmount)) return '0';
 
-  // Format based on the amount value
-  if (Math.abs(numAmount) < 0.000001) {
-    // Very small numbers in scientific notation
-    return numAmount.toExponential(2);
-  } else if (Math.abs(numAmount) < 0.01) {
-    // Small numbers with more decimals
-    return numAmount.toFixed(6);
-  } else if (Math.abs(numAmount) < 1) {
-    // Numbers less than 1
-    return numAmount.toFixed(4);
-  } else if (Math.abs(numAmount) < 1000) {
-    // Regular numbers
-    return numAmount.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  } else {
-    // Large numbers
-    return numAmount.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
+  // Special handling for different tokens
+  switch(symbol.toUpperCase()) {
+    case 'ADA':
+      // Convert from lovelace to ADA
+      numAmount = numAmount / 1_000_000;
+      return numAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6
+      });
+
+    case 'IAG':
+      // IAG needs decimal adjustment and specific formatting
+      numAmount = numAmount / 1_000_000; // Apply 6 decimals
+      return numAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 6
+      });
+
+    case 'HONEY':
+    case 'TALOS':
+    case 'CHARLES':
+    case 'CHAD':
+      // Show raw values without decimal adjustment
+      return numAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      });
+
+    default:
+      // For unknown tokens, use standard number formatting
+      return numAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6
+      });
   }
 };
 
