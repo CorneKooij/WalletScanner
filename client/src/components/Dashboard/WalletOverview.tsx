@@ -43,6 +43,11 @@ const WalletOverview = () => {
 
     // Process tokens
     const processedTokens = walletData.tokens
+      .filter(token => {
+        if (!token || !token.balance) return false;
+        const rawBalance = Number(token.balance);
+        return rawBalance > 0;
+      })
       .map(token => {
         const isAda = token.symbol === 'ADA';
         const rawBalance = Number(token.balance);
@@ -56,15 +61,17 @@ const WalletOverview = () => {
           displayAmount = `${valueInAda} ADA`;
         } else {
           displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
-          if (token.valueUsd && walletData.balance.adaPrice > 0) {
-            valueInAda = token.valueUsd / walletData.balance.adaPrice;
-          }
+          // For non-ADA tokens, get value directly from token data
+          valueInAda = token.valueUsd && walletData.balance.adaPrice
+            ? Number((token.valueUsd / walletData.balance.adaPrice).toFixed(6))
+            : 0;
         }
 
         console.log(`Token ${token.symbol} processed:`, {
           rawBalance,
           valueInAda,
-          valueUsd: token.valueUsd
+          valueUsd: token.valueUsd,
+          displayAmount
         });
 
         return {
@@ -81,8 +88,9 @@ const WalletOverview = () => {
     console.log('Processed tokens:', processedTokens);
 
     const totalValue = processedTokens.reduce((sum, token) => sum + token.valueInAda, 0);
+    console.log('Total value in ADA:', totalValue);
 
-    // Filter significant tokens (>= 1% of total value)
+    // Filter tokens with significant value (>= 1% of total)
     const significantTokens = processedTokens.filter(token => 
       (token.valueInAda / totalValue) >= 0.01
     );
