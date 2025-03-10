@@ -59,13 +59,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               for (const token of walletData.tokens) {
                 const tokenPrice = tokenPrices.get(token.symbol);
                 const rawBalance = Number(token.quantity || 0);
-                // Don't convert the balance here, store raw values
+                const isAda = token.symbol === 'ADA';
+                const adjustedBalance = isAda ? rawBalance / 1_000_000 : rawBalance; // Convert lovelace to ADA here
+
                 await storage.createToken({
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: token.symbol || 'UNKNOWN',
-                  balance: String(rawBalance),
-                  valueUsd: tokenPrice ? (token.symbol === 'ADA' ? rawBalance / 1_000_000 : rawBalance) * tokenPrice.priceUsd : null,
+                  balance: String(adjustedBalance), // Store converted balance
+                  valueUsd: tokenPrice ? adjustedBalance * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
                 });
@@ -77,10 +79,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               for (const tx of walletData.transactions) {
                 try {
                   const txDetails = await getTransactionDetails(tx.hash, walletData.address);
+                  const isAda = txDetails.tokenSymbol === 'ADA';
+                  const adjustedAmount = isAda ? Number(txDetails.amount || 0) / 1_000_000 : Number(txDetails.amount || 0);
+
                   await storage.createTransaction({
                     walletId: wallet.id,
                     type: txDetails.type || 'transfer',
-                    amount: String(txDetails.amount || 0), // Store raw amount
+                    amount: String(adjustedAmount), // Store converted amount
                     date: new Date(tx.blockTime * 1000),
                     address: txDetails.counterpartyAddress ?
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
@@ -96,11 +101,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
 
-            // Store balance history
+            // Store balance history with converted balance
+            const rawBalance = Number(walletData.balance || 0);
+            const adjustedBalance = rawBalance / 1_000_000; // Convert lovelace to ADA
             await storage.createBalanceHistory({
               walletId: wallet.id,
               date: new Date(),
-              balance: String(walletData.balance || 0) // Store raw balance
+              balance: String(adjustedBalance)
             });
           } else {
             // Update existing wallet with fresh price data
@@ -128,13 +135,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         if (price) {
-          const rawBalance = Number(token.balance);
-          const adjustedBalance = token.symbol === 'ADA' ? rawBalance / 1_000_000 : rawBalance;
-
           return {
             ...token,
-            balance: token.symbol === 'ADA' ? String(adjustedBalance) : token.balance,
-            valueUsd: adjustedBalance * price.priceUsd
+            valueUsd: Number(token.balance) * price.priceUsd // No need to convert balance here, it's already converted
           };
         }
         return token;
@@ -148,16 +151,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         address: wallet.address,
         handle: null,
         balance: {
-          ada: adaBalance,
+          ada: adaBalance, // Already converted
           usd: Number(adaBalance) * adaPrice,
           adaPrice: adaPrice,
           percentChange: calculatePercentChange(history)
         },
         tokens: updatedTokens,
-        transactions: transactions.map(tx => ({
-          ...tx,
-          amount: tx.tokenSymbol === 'ADA' ? String(Number(tx.amount) / 1_000_000) : tx.amount
-        })),
+        transactions: transactions, // Already converted
         nfts,
         balanceHistory: history
       });
@@ -179,8 +179,8 @@ function isStaleData(lastUpdated: Date | null): boolean {
 
 function calculatePercentChange(history: any[]): number {
   if (history.length < 2) return 0;
-  const latest = Number(history[history.length - 1].balance) / 1_000_000;
-  const previous = Number(history[0].balance) / 1_000_000;
+  const latest = Number(history[history.length - 1].balance); // Already converted
+  const previous = Number(history[0].balance); // Already converted
   if (previous === 0) return 0;
   return Number(((latest - previous) / previous * 100).toFixed(1));
 }
