@@ -76,12 +76,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastUpdated: new Date()
             });
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error fetching data from Blockfrost:', error);
-          if (error.message === 'Wallet address not found') {
+          if (error.status_code === 404 || error.message === 'Wallet address not found') {
             return res.status(404).json({ message: 'Wallet not found or invalid address' });
+          } else if (error.status_code === 403 || error.status_code === 401) {
+            return res.status(500).json({ message: 'API authentication error. Please check your Blockfrost API key.' });
+          } else if (error.status_code === 429) {
+            return res.status(429).json({ message: 'Too many requests. Please try again later.' });
           }
-          throw error;
+          return res.status(500).json({ message: 'Failed to fetch blockchain data' });
         }
       }
       
