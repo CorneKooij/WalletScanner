@@ -56,20 +56,20 @@ const WalletOverview = () => {
 
     // For ADA, balance is already in ADA
     if (token.symbol === 'ADA') {
-      return balance;
+      return balance / 1_000_000; // Convert lovelace to ADA
     }
 
     // For other tokens, calculate ADA equivalent using USD values
-    if (walletData?.balance.ada) {
-      const adaUsdPrice = walletData.balance.usd / Number(walletData.balance.ada);
-      // If token has USD value, use it to calculate ADA equivalent
-      if (token.valueUsd) {
-        return token.valueUsd / adaUsdPrice;
-      }
-      // Otherwise use token balance directly
-      return balance;
+    if (token.valueUsd && walletData?.balance.usd && walletData?.balance.ada) {
+      // Get ADA price in USD
+      const adaUsdPrice = walletData.balance.usd / (Number(walletData.balance.ada) / 1_000_000);
+
+      // Convert token USD value to ADA equivalent
+      const tokenValueInUsd = token.valueUsd;
+      return tokenValueInUsd / adaUsdPrice;
     }
 
+    // Return 0 if no price data available
     return 0;
   };
 
@@ -139,8 +139,8 @@ const WalletOverview = () => {
       name: token.name,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
-      displayValue: token.symbol === 'ADA'
-        ? `₳${formatTokenAmount(token.balance, 'ADA')}`
+      rawAmount: token.symbol === 'ADA'
+        ? `${formatTokenAmount(Number(token.balance) / 1_000_000, 'ADA')} ADA`
         : `${formatTokenAmount(token.balance, token.symbol)} ${token.symbol}`,
       adaEquivalent: token.valueInAda
     }));
@@ -153,7 +153,8 @@ const WalletOverview = () => {
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayValue: 'Multiple tokens',
-        adaEquivalent: othersValue
+        adaEquivalent: othersValue,
+        rawAmount: 'Multiple tokens'
       });
     }
 
@@ -182,7 +183,7 @@ const WalletOverview = () => {
               font: { size: 11 },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
-                  text: `${item.name} (${item.displayValue}) • ${item.percentage.toFixed(1)}%`,
+                  text: `${item.name} (${item.rawAmount}) • ₳${formatTokenAmount(item.adaEquivalent, 'ADA')}`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -196,7 +197,7 @@ const WalletOverview = () => {
               label: (context) => {
                 const item = chartData[context.dataIndex];
                 return [
-                  `${item.name}: ${item.displayValue}`,
+                  `Amount: ${item.rawAmount}`,
                   `Value: ₳${formatTokenAmount(item.adaEquivalent, 'ADA')} (${item.percentage.toFixed(1)}%)`
                 ];
               }
