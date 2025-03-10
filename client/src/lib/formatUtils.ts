@@ -18,15 +18,16 @@ export const formatADA = (value: number | string, decimals = 2): string => {
 };
 
 /**
- * Formats token amount based on the token's decimal places (e.g., ADA has 6 decimals)
+ * Formats token amount based on the token's decimal places
  * @param amount The raw token amount (string or number)
  * @param symbol The token symbol to determine decimals
- * @param decimals Optional override for decimal places
  * @returns Formatted token amount as string
  */
 export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): string => {
-  // Convert to number
-  let numAmount = typeof amount === 'string' ? Number(amount) : amount;
+  // Convert to number and handle scientific notation
+  let numAmount = typeof amount === 'string' ? 
+    parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
+    amount;
 
   // Get token-specific decimals
   let decimals = 0;
@@ -40,11 +41,17 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
       decimals = 6; // Stablecoins typically use 6 decimals
       break;
     case 'HOSKY':
-    case 'SNEK':
-      decimals = 8; // Some tokens use 8 decimals
+      decimals = 8; // HOSKY uses 8 decimals
+      break;
+    case 'IAGON':
+      decimals = 6; // IAGON uses 6 decimals
+      break;
+    case 'MIN':
+    case 'WMT':
+      decimals = 6; // Other common tokens with 6 decimals
       break;
     default:
-      decimals = 0; // Default to 0 decimals for unknown tokens
+      decimals = 6; // Default to 6 decimals for unknown tokens
   }
 
   // Adjust amount based on decimals
@@ -52,10 +59,20 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
     numAmount = numAmount / Math.pow(10, decimals);
   }
 
-  // Format the result
-  // Use more decimals for very small values
-  const displayDecimals = numAmount < 0.01 && numAmount > 0 ? 6 : 2;
-  return formatADA(numAmount, displayDecimals);
+  // Format the result with appropriate decimals
+  // Use token-specific decimal places
+  let displayDecimals = decimals;
+  if (numAmount >= 1000) {
+    displayDecimals = 2; // Use fewer decimals for large numbers
+  } else if (numAmount >= 1) {
+    displayDecimals = 4; // Use moderate decimals for medium numbers
+  }
+
+  // Format with appropriate decimal places
+  return numAmount.toLocaleString(undefined, {
+    minimumFractionDigits: displayDecimals,
+    maximumFractionDigits: displayDecimals
+  });
 };
 
 /**
@@ -83,7 +100,7 @@ export const shortenAddress = (address: string, prefixLength = 6, suffixLength =
   if (!address) return '';
   if (address === 'Contract' || address === 'Stake Pool') return address;
   if (address.length <= prefixLength + suffixLength + 3) return address;
-  
+
   return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
 };
 
@@ -94,7 +111,7 @@ export const shortenAddress = (address: string, prefixLength = 6, suffixLength =
  */
 export const timestampToDateTime = (timestamp: number): { date: string; time: string } => {
   const date = new Date(timestamp * 1000);
-  
+
   return {
     date: date.toLocaleDateString('en-US', {
       year: 'numeric',

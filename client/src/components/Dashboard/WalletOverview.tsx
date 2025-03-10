@@ -34,39 +34,66 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Convert raw token balances to USD values
-    const tokenDistributionData = {
-      ada: parseFloat(formatTokenAmount(walletData.balance.ada, 'ADA')),
-      hosky: parseFloat(formatTokenAmount(walletData.tokens.find(t => t.symbol === 'HOSKY')?.balance || '0', 'HOSKY')),
-      djed: parseFloat(formatTokenAmount(walletData.tokens.find(t => t.symbol === 'DJED')?.balance || '0', 'DJED')),
-      others: walletData.tokens
-        .filter(t => !['ADA', 'HOSKY', 'DJED'].includes(t.symbol))
-        .reduce((sum, token) => sum + parseFloat(formatTokenAmount(token.balance, token.symbol)), 0)
+    // Calculate token values in ADA equivalent for proper distribution
+    const tokenValues = {
+      ada: parseFloat(formatTokenAmount(walletData.balance.ada || 0, 'ADA')),
+      other: 0
     };
 
-    const total = Object.values(tokenDistributionData).reduce((a, b) => a + b, 0);
+    // Group other tokens
+    const otherTokens: { [key: string]: number } = {};
+    walletData.tokens.forEach(token => {
+      if (!token.symbol || token.symbol === 'ADA') return;
+
+      const value = parseFloat(formatTokenAmount(token.balance || 0, token.symbol));
+      if (value >= (tokenValues.ada * 0.05)) { // Only show tokens that are at least 5% of ADA value
+        otherTokens[token.symbol] = value;
+      } else {
+        tokenValues.other += value;
+      }
+    });
+
+    // Sort tokens by value and take top 3
+    const sortedTokens = Object.entries(otherTokens)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3);
+
+    // Add remaining tokens to 'other'
+    Object.entries(otherTokens)
+      .slice(3)
+      .forEach(([,value]) => {
+        tokenValues.other += value;
+      });
+
+    // Calculate total for percentages
+    const total = tokenValues.ada + 
+      sortedTokens.reduce((sum, [,value]) => sum + value, 0) + 
+      tokenValues.other;
 
     // Calculate percentages
     const percentages = {
-      ada: Math.round((tokenDistributionData.ada / total) * 100) || 0,
-      hosky: Math.round((tokenDistributionData.hosky / total) * 100) || 0,
-      djed: Math.round((tokenDistributionData.djed / total) * 100) || 0,
-      others: Math.round((tokenDistributionData.others / total) * 100) || 0
+      ada: Math.round((tokenValues.ada / total) * 100) || 0,
+      ...Object.fromEntries(
+        sortedTokens.map(([symbol, value]) => [
+          symbol.toLowerCase(),
+          Math.round((value / total) * 100) || 0
+        ])
+      ),
+      other: Math.round((tokenValues.other / total) * 100) || 0
     };
 
-    // Ensure percentages add up to 100%
-    const sum = Object.values(percentages).reduce((a, b) => a + b, 0);
-    if (sum < 100) {
-      percentages.ada += (100 - sum);
-    }
+    // Create chart data
+    const labels = ['ADA', ...sortedTokens.map(([symbol]) => symbol), 'Others'];
+    const data = [percentages.ada, ...sortedTokens.map(([symbol]) => percentages[symbol.toLowerCase()]), percentages.other];
+    const colors = ['#2563EB', '#34D399', '#6366F1', '#EF4444', '#D1D5DB'];
 
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
-        labels: ['ADA', 'HOSKY', 'DJED', 'Others'],
+        labels,
         datasets: [{
-          data: [percentages.ada, percentages.hosky, percentages.djed, percentages.others],
-          backgroundColor: ['#2563EB', '#34D399', '#6366F1', '#D1D5DB'],
+          data,
+          backgroundColor: colors,
           borderWidth: 0
         }]
       },
