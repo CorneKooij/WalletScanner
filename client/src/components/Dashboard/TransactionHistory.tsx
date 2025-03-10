@@ -174,14 +174,17 @@ const TransactionHistory = () => {
 
   return (
     <Card className="lg:col-span-2 bg-white p-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h2 className="text-xl font-semibold">Transaction History</h2>
-        <div className="flex items-center gap-2 w-full md:w-auto max-w-md">
-          <div className="relative flex-1">
+      <div className="flex flex-col space-y-4 mb-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Transaction History</h2>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 max-w-xl mx-auto w-full">
             <Input
               type="text"
               placeholder="Search transactions"
-              className="pl-9 w-full"
+              className="pl-9 pr-4 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -189,28 +192,28 @@ const TransactionHistory = () => {
           </div>
           <Button
             variant="outline"
-            className="shrink-0"
+            className="sm:w-24"
             onClick={() => setSearchTerm('')}
           >
             Clear
           </Button>
         </div>
-      </div>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-        {TRANSACTION_TYPES.map(type => (
-          <button
-            key={type}
-            className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
-              selectedType === type
-                ? 'bg-[#2563EB] text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setSelectedType(type)}
-          >
-            {type}
-          </button>
-        ))}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          {TRANSACTION_TYPES.map(type => (
+            <button
+              key={type}
+              className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
+                selectedType === type
+                  ? 'bg-[#2563EB] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setSelectedType(type)}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
