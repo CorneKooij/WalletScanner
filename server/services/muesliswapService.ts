@@ -6,7 +6,7 @@ interface TokenPrice {
   priceUsd: number;
 }
 
-const MUESLISWAP_API_URL = 'https://analytics.muesliswap.com/price';
+const MUESLISWAP_API_URL = 'https://api.muesliswap.com/list';
 const COINGECKO_ADA_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd';
 
 export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
@@ -25,7 +25,7 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
       throw new Error(`MuesliSwap API error: ${response.statusText}`);
     }
 
-    const data = await response.json() as any;
+    const data = await response.json() as any[];
     const prices = new Map<string, TokenPrice>();
 
     // Add ADA price first
@@ -36,18 +36,15 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
     });
 
     // Process MuesliSwap price data
-    if (data && typeof data === 'object') {
-      for (const [policyId, tokenData] of Object.entries(data)) {
-        if (typeof tokenData === 'object' && tokenData !== null) {
-          const tokenInfo = tokenData as any;
-          if (tokenInfo.price_ada && tokenInfo.ticker) {
-            const priceInAda = Number(tokenInfo.price_ada);
-            prices.set(tokenInfo.ticker, {
-              symbol: tokenInfo.ticker,
-              priceAda: priceInAda,
-              priceUsd: priceInAda * adaUsdPrice
-            });
-          }
+    if (Array.isArray(data)) {
+      for (const token of data) {
+        if (token.price_ada && token.ticker) {
+          const priceInAda = Number(token.price_ada);
+          prices.set(token.ticker, {
+            symbol: token.ticker,
+            priceAda: priceInAda,
+            priceUsd: priceInAda * adaUsdPrice
+          });
         }
       }
     }

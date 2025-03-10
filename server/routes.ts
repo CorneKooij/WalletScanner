@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getWalletInfo, getTokenMetadata, getTransactionDetails } from './services/blockfrostService';
-import { getTokenPrices } from './services/minswapService';
+import { getTokenPrices } from './services/muesliswapService';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Token prices endpoint
@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastUpdated: new Date()
             });
           }
-        } catch (error: any) {
+        } catch (error) {
           console.error('Error fetching data from Blockfrost:', error);
           if (error.status_code === 404) {
             return res.status(404).json({ message: 'Wallet not found' });
