@@ -52,15 +52,14 @@ const WalletOverview = () => {
         let displayAmount: string;
 
         if (isAda) {
-          // Use raw balance for ADA value calculation
-          const rawBalance = Number(token.balance);
-          // Convert from lovelace to ADA
-          valueInAda = rawBalance / 1_000_000;
-          displayAmount = `${valueInAda} ADA`;
+          // Use the proper ADA balance from walletData for both display and value
+          const adaAmount = Number(walletData.balance.ada);
+          valueInAda = adaAmount;
+          displayAmount = `${adaAmount} ADA`;
         } else {
+          // For other tokens, use raw balance for display and USD value for ADA conversion
           const rawBalance = Number(token.balance);
           displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
-          // Convert USD value to ADA equivalent
           valueInAda = token.valueUsd && walletData.balance.adaPrice && walletData.balance.adaPrice > 0
             ? token.valueUsd / walletData.balance.adaPrice
             : 0;
@@ -245,7 +244,7 @@ const WalletOverview = () => {
   );
 };
 
-// Helper functions
+// Helper functions for transaction icons and formatting
 const getTransactionIcon = (type: string) => {
   switch (type) {
     case 'received':
