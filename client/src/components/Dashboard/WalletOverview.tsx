@@ -51,20 +51,25 @@ const WalletOverview = () => {
   const getTokenValueInAda = (token: Token) => {
     if (!token || !token.balance) return 0;
 
-    // For ADA, convert from lovelace to ADA
+    // For ADA, already in ADA format from API
     if (token.symbol === 'ADA') {
-      return Number(token.balance) / 1_000_000;
+      return Number(token.balance);
     }
 
-    // For other tokens, use USD value to calculate ADA equivalent
-    if (token.valueUsd && walletData?.balance.usd) {
-      const adaPrice = walletData.balance.usd / (Number(walletData.balance.ada) / 1_000_000);
-      return token.valueUsd / adaPrice;
+    // For other tokens, calculate equivalent ADA value
+    const balance = Number(token.balance);
+    if (balance > 0) {
+      if (token.valueUsd && walletData?.balance.usd) {
+        const adaPrice = walletData.balance.usd / Number(walletData.balance.ada);
+        return token.valueUsd / adaPrice;
+      }
+      // Fallback to using raw balance if no USD value
+      return balance;
     }
     return 0;
   };
 
-  // Check if token is a valid Cardano token (not NFT or handle)
+  // Check if token is a valid token (not NFT or handle)
   const isValidToken = (token: Token) => {
     if (!token || !token.balance) return false;
 
@@ -75,7 +80,7 @@ const WalletOverview = () => {
     // Exclude handles (policy ID check)
     if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) return false;
 
-    // Only exclude NFTs if they have both decimals=0 and balance=1
+    // Only exclude single-quantity NFTs
     if (token.decimals === 0 && balance === 1) return false;
 
     return true;
@@ -100,7 +105,7 @@ const WalletOverview = () => {
           valueInAda,
           balance: token.balance,
           displayValue: token.symbol === 'ADA' 
-            ? formatTokenAmount(Number(token.balance) / 1_000_000, 'ADA')
+            ? formatTokenAmount(token.balance, 'ADA')
             : formatTokenAmount(token.balance, token.symbol)
         };
       })
@@ -244,7 +249,7 @@ const WalletOverview = () => {
           </div>
         </div>
         <div className="flex items-baseline">
-          <span className="text-3xl font-bold">₳{formatTokenAmount(Number(walletData?.balance.ada || 0) / 1_000_000, 'ADA')}</span>
+          <span className="text-3xl font-bold">₳{formatTokenAmount(walletData?.balance.ada || 0, 'ADA')}</span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
         <div className="text-gray-500 text-sm mt-1">≈ ${formatADA(walletData?.balance.usd || 0)} USD</div>
