@@ -34,12 +34,12 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
     }
 
     const data = await response.json() as any[];
-    console.log('MuesliSwap tokens:', data);
+    console.log('Raw MuesliSwap API response:', JSON.stringify(data.slice(0, 5), null, 2));
 
     // Process token data
     if (Array.isArray(data)) {
       for (const token of data) {
-        // Skip if no valid price_ada or ticker
+        // Skip if no valid price or ticker
         if (!token.price_ada || !token.ticker) continue;
 
         const priceInAda = Number(token.price_ada);
@@ -47,7 +47,7 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
 
         const symbol = token.ticker;
 
-        // Calculate USD price based on ADA price
+        // Calculate USD price using ADA price
         const priceInUsd = priceInAda * adaUsdPrice;
 
         prices.set(symbol, {
@@ -56,12 +56,23 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
           priceUsd: priceInUsd
         });
 
-        console.log(`Token ${symbol} prices:`, {
-          priceAda: priceInAda,
-          priceUsd: priceInUsd
-        });
+        // Log prices for important tokens
+        if (symbol === 'IAG' || symbol === 'HOSKY' || symbol === 'DJED') {
+          console.log(`Token ${symbol} price data:`, {
+            priceInAda,
+            priceInUsd,
+            raw: token
+          });
+        }
       }
     }
+
+    // Log all available prices
+    console.log('Available token prices:', 
+      Array.from(prices.entries())
+        .map(([symbol, data]) => `${symbol}: ${data.priceAda} ADA`)
+        .join(', ')
+    );
 
     return prices;
   } catch (error) {
