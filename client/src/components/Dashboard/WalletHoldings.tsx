@@ -1,6 +1,7 @@
 import { useWallet } from '@/contexts/WalletContext';
 import { Card } from '@/components/ui/card';
-import { formatADA } from '@/lib/formatUtils';
+import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
+import { Link } from 'wouter';
 
 const WalletHoldings = () => {
   const { walletData } = useWallet();

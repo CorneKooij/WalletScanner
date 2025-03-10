@@ -198,19 +198,53 @@ function calculatePercentChange(history: any[]): number {
 }
 
 function calculateTokenDistribution(tokens: any[]): any {
-  const total = tokens.reduce((sum, token) => sum + Number(token.valueUsd || 0), 0);
+  // Since we don't have USD values, use token quantities as a fallback
+  // Convert lovelace (ADA) to a comparable value (1 ADA = 1,000,000 lovelace)
+  let total = 0;
+  const tokenValues = tokens.map(token => {
+    // Use balance as a numeric value
+    const balance = BigInt(token.balance || '0');
+    // Adjust ADA value to make it comparable with other tokens
+    const adjustedValue = token.symbol === 'ADA'
+      ? Number(balance) / 1000000
+      : Number(balance);
+    
+    total += adjustedValue;
+    return {
+      symbol: token.symbol || 'UNKNOWN',
+      value: adjustedValue
+    };
+  });
   
-  if (total === 0) return { ada: 0, hosky: 0, djed: 0, others: 0 };
+  if (total === 0) return { ada: 100, other: 0 }; // Default to 100% ADA if no tokens
   
-  const ada = tokens.find(t => t.symbol === 'ADA')?.valueUsd || 0;
-  const hosky = tokens.find(t => t.symbol === 'HOSKY')?.valueUsd || 0;
-  const djed = tokens.find(t => t.symbol === 'DJED')?.valueUsd || 0;
-  const others = total - ada - hosky - djed;
+  // Group by common tokens and "others"
+  const ada = tokenValues.find(t => t.symbol === 'ADA')?.value || 0;
+  let others = total - ada;
+  
+  // Calculate percentages, ensuring they add up to 100%
+  const adaPercent = Math.round((ada / total) * 100);
+  const othersPercent = 100 - adaPercent;
+  
+  // Create a breakdown of "others" if necessary
+  let othersBreakdown = {};
+  if (others > 0) {
+    // Get top 3 non-ADA tokens
+    const topTokens = tokenValues
+      .filter(t => t.symbol !== 'ADA')
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 3);
+    
+    // Calculate percentages for top tokens
+    othersBreakdown = topTokens.reduce((acc: {[key: string]: number}, token) => {
+      acc[token.symbol.toLowerCase()] = Math.round((token.value / total) * 100);
+      return acc;
+    }, {});
+  }
   
   return {
-    ada: Math.round((ada / total) * 100),
-    hosky: Math.round((hosky / total) * 100),
-    djed: Math.round((djed / total) * 100),
-    others: Math.round((others / total) * 100)
+    ada: adaPercent,
+    others: othersPercent,
+    breakdown: othersBreakdown
   };
 }

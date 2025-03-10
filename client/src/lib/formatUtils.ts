@@ -1,14 +1,53 @@
 /**
  * Formats ADA or USD values to a readable string
- * @param value Number to format
+ * @param value Number or string to format
  * @param decimals Number of decimal places (default: 2)
  * @returns Formatted string
  */
-export const formatADA = (value: number, decimals = 2): string => {
-  return value.toLocaleString(undefined, {
+export const formatADA = (value: number | string, decimals = 2): string => {
+  // Convert string to number if needed
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  
+  // Handle NaN or invalid values
+  if (isNaN(numValue)) return '0.00';
+  
+  return numValue.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   });
+};
+
+/**
+ * Formats token amount based on the token's decimal places (e.g., ADA has 6 decimals)
+ * @param amount The raw token amount (string or number)
+ * @param symbol The token symbol to determine decimals
+ * @param decimals Optional override for decimal places
+ * @returns Formatted token amount as string
+ */
+export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decimals?: number): string => {
+  // Convert to number
+  let numAmount = typeof amount === 'string' ? Number(amount) : amount;
+  
+  // Set token-specific decimals if not provided
+  if (decimals === undefined) {
+    // ADA and stablecoins typically use 6 decimals in Cardano
+    if (symbol === 'ADA' || symbol === 'DJED' || symbol === 'USDA') {
+      decimals = 6;
+    } else {
+      // Other tokens typically use 0 decimals in Cardano
+      decimals = 0;
+    }
+  }
+  
+  // Adjust amount based on decimals
+  if (decimals > 0) {
+    numAmount = numAmount / Math.pow(10, decimals);
+  }
+  
+  // Format the result
+  // Use more decimals for very small values
+  const displayDecimals = numAmount < 0.01 && numAmount > 0 ? 6 : 2;
+  return formatADA(numAmount, displayDecimals);
 };
 
 /**

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { Card } from '@/components/ui/card';
-import { formatADA } from '@/lib/formatUtils';
-import { ArrowDown, ArrowUp, Clipboard, Search, Shuffle, Zap } from 'lucide-react';
+import { formatADA, formatTokenAmount, shortenAddress } from '@/lib/formatUtils';
+import { ArrowDown, ArrowUp, Clipboard, ExternalLink, Search, Shuffle, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip } from '@/components/ui/tooltip';
 
 // Transaction types for filtering
 const TRANSACTION_TYPES = ['All', 'Received', 'Sent', 'Swaps', 'Staking', 'NFT Activity'];
@@ -108,16 +109,38 @@ const TransactionHistory = () => {
       return <span className="font-medium">₳0.00</span>;
     }
     
+    const symbol = tx.tokenSymbol || 'ADA';
+    
     if (tx.type === 'received' || tx.type === 'stake_reward') {
-      return <span className="text-[#34D399] font-medium">+₳{formatADA(tx.amount)}</span>;
+      return (
+        <span className="text-[#34D399] font-medium">
+          +₳{formatTokenAmount(tx.amount, 'ADA')}
+        </span>
+      );
     } else if (tx.type === 'sent') {
-      return <span className="text-[#EF4444] font-medium">-₳{formatADA(tx.amount)}</span>;
+      return (
+        <span className="text-[#EF4444] font-medium">
+          -₳{formatTokenAmount(tx.amount, 'ADA')}
+        </span>
+      );
     } else if (tx.type === 'swap') {
-      return <span className="text-[#6366F1] font-medium">
-        ₳{formatADA(tx.amount)} → {tx.tokenAmount || '0'} {tx.tokenSymbol || 'TOKEN'}
-      </span>;
+      return (
+        <span className="text-[#6366F1] font-medium">
+          ₳{formatTokenAmount(tx.amount, 'ADA')} → {formatTokenAmount(tx.tokenAmount || '0', tx.tokenSymbol)} {tx.tokenSymbol || 'TOKEN'}
+        </span>
+      );
     }
-    return <span className="font-medium">₳{formatADA(tx.amount)}</span>;
+    
+    // Default case for other transaction types
+    if (symbol === 'ADA') {
+      return <span className="font-medium">₳{formatTokenAmount(tx.amount, symbol)}</span>;
+    } else {
+      return (
+        <span className="font-medium">
+          {formatTokenAmount(tx.tokenAmount || tx.amount, symbol)} {symbol}
+        </span>
+      );
+    }
   };
 
   // Handle copy address to clipboard
