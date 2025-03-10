@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Card } from '@/components/ui/card';
+import { ArrowDown, ArrowUp, Shuffle } from 'lucide-react';
 import Chart from 'chart.js/auto';
 
 interface Token {
@@ -285,6 +286,5 @@ const formatAmount = (tx: any) => {
   }
   return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
 };
-
 
 export default WalletOverview;
