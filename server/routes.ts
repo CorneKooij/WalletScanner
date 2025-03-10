@@ -53,9 +53,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const isLovelace = token.unit === 'lovelace';
                 const rawBalance = Number(token.quantity || 0);
 
-                // For ADA (lovelace), convert to ADA units and calculate USD value
+                // For ADA (lovelace), convert to ADA units
                 if (isLovelace) {
-                  const adaBalance = rawBalance / 1_000_000;
+                  const adaBalance = rawBalance / 1_000_000; // Convert lovelace to ADA
                   await storage.createToken({
                     walletId: wallet.id,
                     name: 'Cardano',
@@ -66,14 +66,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     unit: token.unit
                   });
                 } else {
-                  // For other tokens, use price in ADA to calculate USD value
+                  // For other tokens, apply decimals and calculate USD value using price in ADA
+                  const decimals = token.decimals || 6; // Default to 6 decimals if not specified
+                  const adjustedBalance = rawBalance / Math.pow(10, decimals);
+
                   await storage.createToken({
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
                     symbol: token.symbol || 'UNKNOWN',
-                    balance: String(rawBalance),
-                    valueUsd: tokenPrice ? rawBalance * tokenPrice.priceAda * adaPrice : null,
-                    decimals: token.decimals || 0,
+                    balance: String(rawBalance), // Store raw amount
+                    valueUsd: tokenPrice ? adjustedBalance * tokenPrice.priceAda * adaPrice : null,
+                    decimals: decimals,
                     unit: token.unit
                   });
                 }
@@ -83,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (walletData.transactions) {
               for (const tx of walletData.transactions) {
                 try {
-                  const txDetails = await getTransactionDetails(tx.hash, walletData.address);
+                  const txDetails = await getTransactionDetails(tx.hash, address);
                   const isLovelace = txDetails.unit === 'lovelace';
                   const rawAmount = Number(txDetails.amount || 0);
                   const amount = isLovelace ? rawAmount / 1_000_000 : rawAmount;
@@ -97,8 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
                       null,
                     fullAddress: txDetails.counterpartyAddress,
-                    tokenSymbol: isLovelace ? 'ADA' : (txDetails.tokenSymbol || 'UNKNOWN'),
-                    tokenAmount: txDetails.tokenAmount || '0',
+                    tokenSymbol: isLovelace ? 'ADA' : txDetails.tokenSymbol,
+                    tokenAmount: txDetails.tokenAmount,
                     explorerUrl: `https://cardanoscan.io/transaction/${tx.hash}`
                   });
                 } catch (txError) {
@@ -108,11 +111,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             if (walletData.balance) {
-              const rawBalance = Number(walletData.balance);
               await storage.createBalanceHistory({
                 walletId: wallet.id,
                 date: new Date(),
-                balance: String(rawBalance)
+                balance: String(walletData.balance)
               });
             }
           } else {
@@ -150,11 +152,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
 
-        // For non-ADA tokens, calculate USD value using ADA price
-        const valueInAda = price ? rawBalance * price.priceAda : 0;
+        // For non-ADA tokens, apply decimals and calculate current value
+        const decimals = token.decimals || 6;
+        const adjustedBalance = rawBalance / Math.pow(10, decimals);
+        const valueInAda = price ? adjustedBalance * price.priceAda : 0;
+
         return {
           ...token,
-          balance: String(rawBalance),
+          balance: String(adjustedBalance),
           valueUsd: valueInAda * adaPrice
         };
       });
