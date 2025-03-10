@@ -100,7 +100,6 @@ const trimTokenName = (name: string, maxLength = 15) => {
           fullName: getFullTokenName(token.name || token.symbol),
           symbol: token.symbol,
           valueInAda,
-          balance: token.balance,
           displayAmount: `${displayAmount} ${token.symbol}`
         };
       })
@@ -120,17 +119,19 @@ const trimTokenName = (name: string, maxLength = 15) => {
     const chartData = significantTokens.map(token => ({
       name: token.name,
       fullName: token.fullName,
+      symbol: token.symbol,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
       displayAmount: token.displayAmount,
       adaValue: formatTokenAmount(token.valueInAda, 'ADA')
     }));
 
-    const othersValue = otherTokens.reduce((sum, token) => sum + token.valueInAda, 0);
-    if (othersValue > 0) {
+    if (otherTokens.length > 0) {
+      const othersValue = otherTokens.reduce((sum, token) => sum + token.valueInAda, 0);
       chartData.push({
         name: 'Others',
-        fullName: 'Other Tokens',
+        fullName: `Other Tokens (${otherTokens.length})`,
+        symbol: 'OTHERS',
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
@@ -175,14 +176,18 @@ const trimTokenName = (name: string, maxLength = 15) => {
             }
           },
           tooltip: {
+            enabled: true,
+            position: 'nearest',
             callbacks: {
+              title: (items) => {
+                const item = chartData[items[0].dataIndex];
+                return item.fullName;
+              },
               label: (context) => {
                 const item = chartData[context.dataIndex];
-                const token = validTokens.find(t => t.fullName === item.fullName);
-
                 return [
-                  `Token: ${item.fullName} (${token?.symbol || 'Unknown'})`,
-                  `Amount: ${item.displayAmount}`,
+                  `Symbol: ${item.symbol || 'Unknown'}`,
+                  `Balance: ${item.displayAmount}`,
                   `Value: ₳${item.adaValue}`,
                   `Share: ${item.percentage.toFixed(1)}%`
                 ];
@@ -199,18 +204,20 @@ const trimTokenName = (name: string, maxLength = 15) => {
             },
             padding: 16,
             bodySpacing: 8,
-            displayColors: true,
-            boxPadding: 6,
+            displayColors: false,
+            boxPadding: 8,
             backgroundColor: 'rgba(255, 255, 255, 0.98)',
             titleColor: '#000',
             bodyColor: '#4B5563',
             borderColor: '#E5E7EB',
             borderWidth: 1,
             cornerRadius: 8,
-            bodyAlign: 'left',
             titleAlign: 'left',
-            boxWidth: 'auto',
-            boxHeight: 'auto'
+            bodyAlign: 'left',
+            boxWidth: 320,
+            boxHeight: 'auto',
+            titleMarginBottom: 10,
+            usePointStyle: true
           }
         }
       }
