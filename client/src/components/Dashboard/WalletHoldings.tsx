@@ -2,6 +2,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { Card } from '@/components/ui/card';
 import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Link } from 'wouter';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const WalletHoldings = () => {
   const { walletData } = useWallet();
@@ -38,15 +39,16 @@ const WalletHoldings = () => {
     };
   };
 
-  // Format balance safely
-  const formatBalance = (balance: string | number | undefined | null): string => {
-    if (balance === undefined || balance === null) return '0';
+  // Function to display token balance with proper formatting
+  const getFormattedBalance = (token: any): string => {
+    if (!token || token.balance === undefined || token.balance === null) {
+      return '0';
+    }
     
     try {
-      const numBalance = typeof balance === 'string' ? Number(balance) : balance;
-      return numBalance.toLocaleString();
+      return formatTokenAmount(token.balance, token.symbol);
     } catch (error) {
-      console.error('Error formatting balance:', error);
+      console.error('Error formatting token balance:', error);
       return '0';
     }
   };
@@ -69,10 +71,24 @@ const WalletHoldings = () => {
                   <div className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-medium">{formatBalance(token.balance)}</div>
-                <div className="text-xs text-gray-500">≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}</div>
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-right cursor-help">
+                      <div className="font-medium">
+                        {token.symbol === 'ADA' ? '₳' : ''}{getFormattedBalance(token)}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p>Raw balance: {token.balance || '0'}</p>
+                    {token.symbol === 'ADA' && <p>1 ADA = 1,000,000 lovelace</p>}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           );
         })
@@ -83,12 +99,9 @@ const WalletHoldings = () => {
       )}
       
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 5 && (
-        <button 
-          className="mt-4 w-full py-2 text-sm font-medium text-[#2563EB] border border-[#2563EB] rounded-lg hover:bg-blue-50 transition-colors"
-          onClick={() => window.location.href = "/holdings"}
-        >
+        <Link href="/holdings" className="mt-4 w-full py-2 text-sm font-medium text-[#2563EB] border border-[#2563EB] rounded-lg hover:bg-blue-50 transition-colors text-center block">
           View All Tokens
-        </button>
+        </Link>
       )}
     </Card>
   );
