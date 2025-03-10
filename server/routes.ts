@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { fetchWalletData } from "./services/cardanoApi";
 
+import { getWalletInfo, getTokenMetadata, getTransactionDetails } from './services/blockfrostService';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   app.get('/api/wallet/:address', async (req, res) => {
@@ -16,76 +18,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Try to get wallet from storage first
       let wallet = await storage.getWalletByAddress(address);
       
-      // If wallet doesn't exist or data is stale, fetch from API
+      // If wallet doesn't exist or data is stale, fetch from Blockfrost
       if (!wallet || isStaleData(wallet.lastUpdated)) {
-        const walletData = await fetchWalletData(address);
-        
-        if (!walletData) {
-          return res.status(404).json({ message: 'Wallet not found or invalid address' });
-        }
-        
-        // Store or update wallet data in storage
-        if (!wallet) {
-          wallet = await storage.createWallet({
-            address: walletData.address,
-            handle: walletData.handle || null,
-            lastUpdated: new Date()
-          });
+        try {
+          const walletData = await getWalletInfo(address);
           
-          // Store tokens
-          for (const token of walletData.tokens) {
-            await storage.createToken({
-              walletId: wallet.id,
-              name: token.name,
-              symbol: token.symbol,
-              balance: token.balance,
-              valueUsd: token.valueUsd || 0
+          // Store or update wallet data in storage
+          if (!wallet) {
+            wallet = await storage.createWallet({
+              address: walletData.address,
+              handle: null, // Blockfrost doesn't provide handle info
+              lastUpdated: new Date()
             });
-          }
-          
-          // Store transactions
-          for (const tx of walletData.transactions) {
-            await storage.createTransaction({
-              walletId: wallet.id,
-              type: tx.type,
-              amount: tx.amount,
-              date: new Date(tx.timestamp * 1000),
-              address: tx.address,
-              fullAddress: tx.fullAddress,
-              tokenSymbol: tx.tokenSymbol,
-              tokenAmount: tx.tokenAmount || 0,
-              explorerUrl: tx.explorerUrl
-            });
-          }
-          
-          // Store NFTs
-          for (const nft of walletData.nfts || []) {
-            await storage.createNFT({
-              walletId: wallet.id,
-              name: nft.name,
-              collection: nft.collection || '',
-              image: nft.image || '',
-              policyId: nft.policyId || '',
-              attributes: nft.attributes || []
-            });
-          }
-          
-          // Store balance history
-          for (const history of walletData.balanceHistory) {
+            
+            // Store tokens
+            const tokens = walletData.tokens || [];
+            for (const token of tokens) {
+              const tokenMetadata = await getTokenMetadata(token.unit);
+              if (tokenMetadata) {
+                await storage.createToken({
+                  walletId: wallet.id,
+                  name: tokenMetadata.name,
+                  symbol: tokenMetadata.symbol,
+                  balance: token.quantity,
+                  valueUsd: null // We would need a price feed service for this
+                });
+              }
+            }
+            
+            // Store transactions
+            const transactions = walletData.transactions || [];
+            for (const tx of transactions) {
+              const txDetails = await getTransactionDetails(tx.hash);
+              await storage.createTransaction({
+                walletId: wallet.id,
+                type: 'transfer', // We would need to analyze inputs/outputs for precise type
+                amount: txDetails.fees,
+                date: new Date(tx.blockTime * 1000),
+                address: address,
+                fullAddress: address,
+                tokenSymbol: 'ADA',
+                tokenAmount: txDetails.fees,
+                explorerUrl: `https://cardanoscan.io/transaction/${tx.hash}`
+              });
+            }
+            
+            // Store balance history (using current balance as we don't have historical data)
             await storage.createBalanceHistory({
               walletId: wallet.id,
-              date: new Date(history.date),
-              balance: history.balance
+              date: new Date(),
+              balance: walletData.balance
+            });
+          } else {
+            // Update wallet
+            wallet = await storage.updateWallet(wallet.id, {
+              ...wallet,
+              lastUpdated: new Date()
             });
           }
-        } else {
-          // Update wallet
-          wallet = await storage.updateWallet(wallet.id, {
-            ...wallet,
-            lastUpdated: new Date()
-          });
-          
-          // For simplicity, in a real app we would update tokens, transactions, NFTs, etc.
+        } catch (error) {
+          console.error('Error fetching data from Blockfrost:', error);
+          if (error.message === 'Wallet address not found') {
+            return res.status(404).json({ message: 'Wallet not found or invalid address' });
+          }
+          throw error;
         }
       }
       
