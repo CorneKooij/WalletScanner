@@ -34,33 +34,34 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
     }
 
     const data = await response.json() as any[];
-    console.log('MuesliSwap API response status:', response.status);
-    console.log('Number of tokens in response:', data?.length);
-    console.log('First few tokens:', data?.slice(0, 5));
+    console.log('MuesliSwap API response length:', data?.length);
 
     // Process token data
     if (Array.isArray(data)) {
       for (const token of data) {
         try {
-          // Log raw token data for debugging
+          // Get token info from either nested structure or direct properties
+          const tokenInfo = token.info || token;
+          const priceInfo = token.price || token;
+
+          const symbol = tokenInfo.symbol || tokenInfo.ticker;
+          const priceInAda = Number(priceInfo.price || priceInfo.price_ada);
+
           console.log('Processing token:', {
-            ticker: token.ticker,
-            price_ada: token.price_ada,
-            name: token.name
+            symbol,
+            priceInAda,
+            rawToken: token
           });
 
-          if (!token.price_ada || !token.ticker) {
-            console.log('Skipping token due to missing data:', token);
+          if (!symbol || isNaN(priceInAda)) {
+            console.log('Skipping token due to invalid data:', {
+              symbol,
+              priceInAda
+            });
             continue;
           }
 
-          const priceInAda = Number(token.price_ada);
-          if (isNaN(priceInAda)) {
-            console.log('Invalid price for token:', token);
-            continue;
-          }
-
-          const symbol = token.ticker;
+          // Calculate USD price
           const priceInUsd = priceInAda * adaUsdPrice;
 
           prices.set(symbol, {
@@ -69,18 +70,17 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
             priceUsd: priceInUsd
           });
 
-          // Log successful price addition
           console.log(`Added price for ${symbol}:`, {
             priceAda: priceInAda,
             priceUsd: priceInUsd
           });
         } catch (tokenError) {
-          console.error('Error processing token:', tokenError, token);
+          console.error('Error processing token:', tokenError);
         }
       }
     }
 
-    // Log summary of all prices
+    // Log available prices
     console.log('Available token prices:', 
       Array.from(prices.entries())
         .map(([symbol, data]) => `${symbol}: ${data.priceAda} ADA`)
