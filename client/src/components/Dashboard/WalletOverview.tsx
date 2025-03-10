@@ -37,12 +37,11 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Calculate ADA value for each token
+    // Filter and transform tokens
     const validTokens = walletData.tokens
       .filter(token => {
         if (!token || !token.balance) return false;
-        const isAda = token.symbol === 'ADA';
-        if (isAda) return true;
+        if (token.symbol === 'ADA') return true;
         // For non-ADA tokens, ensure they have a USD value
         return token.valueUsd !== null && token.valueUsd !== undefined && token.valueUsd > 0;
       })
@@ -52,10 +51,10 @@ const WalletOverview = () => {
         let displayAmount: string;
 
         if (isAda) {
-          // Use the proper ADA balance from walletData for both display and value
+          // For ADA tokens, use the balance.ada value directly without any conversion
           const adaAmount = Number(walletData.balance.ada);
-          valueInAda = adaAmount;
           displayAmount = `${adaAmount} ADA`;
+          valueInAda = adaAmount; // Use the same value for both display and calculations
         } else {
           // For other tokens, use raw balance for display and USD value for ADA conversion
           const rawBalance = Number(token.balance);
@@ -91,10 +90,10 @@ const WalletOverview = () => {
     const chartData = significantTokens.map(token => ({
       name: token.name,
       symbol: token.symbol,
-      value: token.valueInAda,
+      value: token.valueInAda, // Using the correct ADA value
       percentage: (token.valueInAda / totalValue * 100),
       displayAmount: token.displayAmount,
-      adaEquivalent: `₳${formatTokenAmount(token.valueInAda, 'ADA')}`,
+      adaEquivalent: `₳${token.valueInAda}`, // Direct use of valueInAda for ADA tokens
       usdValue: token.usdValue
     }));
 
@@ -106,7 +105,7 @@ const WalletOverview = () => {
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
         displayAmount: `${otherTokens.length} tokens`,
-        adaEquivalent: `₳${formatTokenAmount(othersValue, 'ADA')}`,
+        adaEquivalent: `₳${othersValue}`,
         usdValue: formatADA(othersValue * (walletData.balance.adaPrice || 0))
       });
     }
