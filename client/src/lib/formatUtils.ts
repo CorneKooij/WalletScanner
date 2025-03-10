@@ -42,25 +42,32 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
       });
 
     case 'IAG':
-      // IAG needs decimal adjustment and specific formatting
-      numAmount = numAmount / 1_000_000; // Apply 6 decimals
+      // Show IAG with full decimal precision
       return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
+        minimumFractionDigits: 6,
         maximumFractionDigits: 6
       });
 
     case 'HONEY':
+    case '389A81D09F92E156649049E15DB6E82F8D945BD1520033A0734088BD686F6E65792E':
     case 'TALOS':
     case 'CHARLES':
     case 'CHAD':
-      // Show raw values without decimal adjustment
-      return numAmount.toLocaleString(undefined, {
+      // Show raw values without decimal adjustment for these tokens
+      return Math.floor(numAmount).toLocaleString(undefined, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
       });
 
+    case 'WMTX':
+      // Keep all decimals for WMTX
+      return numAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 6,
+        maximumFractionDigits: 6
+      });
+
     default:
-      // For unknown tokens, use standard number formatting
+      // For unknown tokens, show up to 6 decimals if present
       return numAmount.toLocaleString(undefined, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 6
@@ -91,9 +98,7 @@ export const formatDate = (dateString: string): string => {
  */
 export const shortenAddress = (address: string, prefixLength = 6, suffixLength = 6): string => {
   if (!address) return '';
-  if (address === 'Contract' || address === 'Stake Pool') return address;
   if (address.length <= prefixLength + suffixLength + 3) return address;
-
   return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
 };
 
