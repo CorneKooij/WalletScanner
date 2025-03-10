@@ -53,11 +53,8 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
     case 'TALOS':
     case 'CHARLES':
     case 'CHAD':
-      // Show raw values without decimal adjustment for these tokens
-      return Math.floor(numAmount).toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      });
+      // Show raw integer values without any formatting
+      return Math.floor(numAmount).toString();
 
     case 'WMTX':
       // Keep all decimals for WMTX
@@ -73,20 +70,6 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
         maximumFractionDigits: 6
       });
   }
-};
-
-/**
- * Formats a date string in the format YYYY-MM-DD to MMM DD, YYYY
- * @param dateString Date string in YYYY-MM-DD format
- * @returns Formatted date string
- */
-export const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
 };
 
 /**
