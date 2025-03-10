@@ -51,22 +51,20 @@ const WalletOverview = () => {
   const getTokenValueInAda = (token: Token) => {
     if (!token || !token.balance) return 0;
 
-    // For ADA, already in ADA format from API
+    // For ADA, just return the balance (already in ADA)
     if (token.symbol === 'ADA') {
       return Number(token.balance);
     }
 
-    // For other tokens, calculate equivalent ADA value
-    const balance = Number(token.balance);
-    if (balance > 0) {
-      if (token.valueUsd && walletData?.balance.usd) {
-        const adaPrice = walletData.balance.usd / Number(walletData.balance.ada);
-        return token.valueUsd / adaPrice;
-      }
-      // Fallback to using raw balance if no USD value
-      return balance;
+    // For other tokens, convert USD value to ADA equivalent
+    if (token.valueUsd && walletData?.balance.usd && Number(walletData.balance.ada) > 0) {
+      // Calculate ADA price: total USD value / total ADA amount
+      const adaPriceUsd = walletData.balance.usd / Number(walletData.balance.ada);
+      // Convert token's USD value to ADA
+      return token.valueUsd / adaPriceUsd;
     }
-    return 0;
+
+    return 0; // If no USD value available, exclude from chart
   };
 
   // Check if token is a valid token (not NFT or handle)
@@ -82,6 +80,9 @@ const WalletOverview = () => {
 
     // Only exclude single-quantity NFTs
     if (token.decimals === 0 && balance === 1) return false;
+
+    // Ensure token has a USD value for accurate comparison (except ADA)
+    if (token.symbol !== 'ADA' && !token.valueUsd) return false;
 
     return true;
   };
@@ -104,7 +105,7 @@ const WalletOverview = () => {
           symbol: token.symbol,
           valueInAda,
           balance: token.balance,
-          displayValue: token.symbol === 'ADA' 
+          displayValue: token.symbol === 'ADA'
             ? formatTokenAmount(token.balance, 'ADA')
             : formatTokenAmount(token.balance, token.symbol)
         };
@@ -118,11 +119,11 @@ const WalletOverview = () => {
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
     // Prepare chart data (only include tokens with > 1% of total value)
-    const significantTokens = validTokens.filter(token => 
+    const significantTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token => 
+    const otherTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) < 0.01
     );
 
