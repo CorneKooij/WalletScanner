@@ -49,8 +49,6 @@ const WalletOverview = () => {
   // Check if token should be included in chart
   const isValidToken = (token: Token) => {
     if (!token || !token.balance) return false;
-
-    // Exclude zero balance tokens
     if (Number(token.balance) <= 0) return false;
 
     // Exclude ADA handles
@@ -70,21 +68,18 @@ const WalletOverview = () => {
   const getTokenValue = (token: Token) => {
     if (!token || !token.balance) return 0;
 
-    // For ADA, convert from lovelace to ADA
+    // For ADA, use raw balance (already in ADA)
     if (token.symbol === 'ADA') {
-      return Number(token.balance) / 1_000_000;
+      return Number(token.balance);
     }
 
-    // Get total ADA value and price
-    const totalAdaValue = Number(walletData?.balance.ada || 0) / 1_000_000;
-    const adaPriceUsd = totalAdaValue > 0 ? (walletData?.balance.usd || 0) / totalAdaValue : 0;
-
-    // Convert token's USD value to ADA
-    if (token.valueUsd && adaPriceUsd > 0) {
+    // For other tokens, convert their USD value to ADA equivalent
+    if (token.valueUsd && walletData?.balance.usd) {
+      const adaPriceUsd = walletData.balance.usd / Number(walletData.balance.ada);
       return token.valueUsd / adaPriceUsd;
     }
 
-    return 0;
+    return Number(token.balance); // Use raw balance if no USD value
   };
 
   useEffect(() => {
@@ -99,14 +94,20 @@ const WalletOverview = () => {
       .filter(isValidToken)
       .map(token => {
         const valueInAda = getTokenValue(token);
-        const displayAmount = token.symbol === 'ADA'
-          ? formatTokenAmount(Number(token.balance) / 1_000_000, 'ADA')
-          : formatTokenAmount(token.balance, token.symbol);
+        const displayAmount = formatTokenAmount(token.balance, token.symbol);
+
+        console.log(`Token ${token.symbol}:`, {
+          balance: token.balance,
+          valueInAda,
+          valueUsd: token.valueUsd,
+          displayAmount
+        });
 
         return {
           name: trimTokenName(token.name || token.symbol),
           symbol: token.symbol,
           valueInAda,
+          balance: token.balance,
           displayAmount: `${displayAmount} ${token.symbol}`
         };
       })
@@ -132,7 +133,8 @@ const WalletOverview = () => {
       name: token.name,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
-      displayAmount: token.displayAmount
+      displayAmount: token.displayAmount,
+      adaValue: formatTokenAmount(token.valueInAda, 'ADA')
     }));
 
     // Add "Others" category if needed
@@ -142,7 +144,8 @@ const WalletOverview = () => {
         name: 'Others',
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
-        displayAmount: `${otherTokens.length} tokens`
+        displayAmount: `${otherTokens.length} tokens`,
+        adaValue: formatTokenAmount(othersValue, 'ADA')
       });
     }
 
@@ -186,7 +189,7 @@ const WalletOverview = () => {
                 const item = chartData[context.dataIndex];
                 return [
                   `Amount: ${item.displayAmount}`,
-                  `Value: ₳${formatTokenAmount(item.value, 'ADA')} (${item.percentage.toFixed(1)}%)`
+                  `Value: ₳${item.adaValue} (${item.percentage.toFixed(1)}%)`
                 ];
               }
             }
@@ -230,15 +233,14 @@ const WalletOverview = () => {
   const formatTransactionAmount = (tx: Transaction) => {
     if (!tx.amount) return '₳0.00';
 
-    const amount = Number(tx.amount) / 1_000_000;
     if (tx.type === 'received') {
-      return `+₳${formatTokenAmount(amount, 'ADA')}`;
+      return `+₳${formatTokenAmount(tx.amount, 'ADA')}`;
     } else if (tx.type === 'sent') {
-      return `-₳${formatTokenAmount(amount, 'ADA')}`;
+      return `-₳${formatTokenAmount(tx.amount, 'ADA')}`;
     } else if (tx.type === 'swap') {
-      return `₳${formatTokenAmount(amount, 'ADA')} → ${formatTokenAmount(tx.tokenAmount || 0, tx.tokenSymbol || '')} ${tx.tokenSymbol}`;
+      return `₳${formatTokenAmount(tx.amount, 'ADA')} → ${formatTokenAmount(tx.tokenAmount || 0, tx.tokenSymbol || '')} ${tx.tokenSymbol}`;
     }
-    return `₳${formatTokenAmount(amount, 'ADA')}`;
+    return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
   };
 
   return (
@@ -253,7 +255,7 @@ const WalletOverview = () => {
         </div>
         <div className="flex items-baseline">
           <span className="text-3xl font-bold">
-            ₳{formatTokenAmount(Number(walletData?.balance.ada || 0) / 1_000_000, 'ADA')}
+            ₳{formatTokenAmount(walletData?.balance.ada || 0, 'ADA')}
           </span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
