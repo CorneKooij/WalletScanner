@@ -67,11 +67,8 @@ const WalletHoldings = () => {
         walletData.tokens.map((token: Token, index: number) => {
           const { bg, textColor, symbol } = getTokenDetails(token);
           const displayName = truncateText(token.name);
-          // Only show unit for non-ADA tokens
           const displayId = token.symbol !== 'ADA' && token.unit ? truncateText(token.unit, 'id') : '';
-
-          // Use raw balance for display, ADA conversion happens in formatTokenAmount
-          const displayBalance = token.balance || '0';
+          const isAda = token.symbol === 'ADA';
 
           return (
             <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
@@ -113,7 +110,13 @@ const WalletHoldings = () => {
                   <TooltipTrigger asChild>
                     <div className="text-right cursor-help">
                       <div className="font-medium">
-                        {token.symbol === 'ADA' ? '₳' : ''}{formatTokenAmount(displayBalance, token.symbol)}
+                        {isAda ? (
+                          // Use ADA amount from balance object for ADA tokens
+                          `₳${walletData.balance.ada}`
+                        ) : (
+                          // Use formatTokenAmount for other tokens
+                          formatTokenAmount(token.balance, token.symbol)
+                        )}
                       </div>
                       <div className="text-xs text-gray-500">
                         ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
@@ -124,10 +127,10 @@ const WalletHoldings = () => {
                     <div>
                       <p className="text-xs font-medium text-gray-500">Balance</p>
                       <div className="mt-1 bg-gray-50 rounded p-2">
-                        <p className="text-sm font-mono break-all select-all">{displayBalance}</p>
+                        <p className="text-sm font-mono break-all select-all">{token.balance}</p>
                       </div>
                     </div>
-                    {token.symbol === 'ADA' && (
+                    {isAda && (
                       <div className="pt-2 border-t border-gray-100">
                         <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
                       </div>

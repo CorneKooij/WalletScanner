@@ -30,32 +30,6 @@ const WalletOverview = () => {
     '#D1D5DB'  // Gray (for Others)
   ]);
 
-  const getTokenValue = (token: Token): { balance: number, valueInAda: number } => {
-    if (!token || !token.balance) return { balance: 0, valueInAda: 0 };
-
-    const rawBalance = Number(token.balance);
-    const isAda = token.symbol === 'ADA';
-
-    // For ADA, convert from lovelace to ADA
-    if (isAda) {
-      const adaBalance = rawBalance / 1_000_000;
-      return {
-        balance: adaBalance,
-        valueInAda: adaBalance
-      };
-    }
-
-    // For other tokens, use USD price to calculate ADA equivalent
-    if (token.valueUsd && walletData?.balance.adaPrice && walletData.balance.adaPrice > 0) {
-      return {
-        balance: rawBalance,
-        valueInAda: token.valueUsd / walletData.balance.adaPrice
-      };
-    }
-
-    return { balance: rawBalance, valueInAda: 0 };
-  };
-
   useEffect(() => {
     if (!tokenChartRef.current || !walletData?.tokens || isLoading) return;
 
@@ -63,20 +37,35 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
+    // Filter and transform tokens
     const validTokens = walletData.tokens
       .filter(token => {
         if (!token || !token.balance) return false;
-        const value = getTokenValue(token);
-        return value.valueInAda > 0;
+        const rawBalance = Number(token.balance);
+        return rawBalance > 0;
       })
       .map(token => {
-        const { balance, valueInAda } = getTokenValue(token);
+        const isAda = token.symbol === 'ADA';
+        let valueInAda;
+        let displayBalance;
+
+        if (isAda) {
+          // For ADA, use the balance.ada value which is already converted
+          valueInAda = Number(walletData.balance.ada);
+          displayBalance = walletData.balance.ada;
+        } else {
+          // For other tokens, calculate ADA value using USD prices
+          const rawBalance = Number(token.balance);
+          displayBalance = formatTokenAmount(rawBalance, token.symbol);
+          valueInAda = token.valueUsd && walletData.balance.adaPrice ? 
+            token.valueUsd / walletData.balance.adaPrice : 0;
+        }
+
         return {
           name: token.name || token.symbol,
           symbol: token.symbol,
-          balance,
           valueInAda,
-          displayAmount: formatTokenAmount(balance, token.symbol),
+          displayAmount: `${displayBalance} ${token.symbol}`,
           usdValue: token.valueUsd ? formatADA(token.valueUsd) : '0.00'
         };
       })
@@ -84,6 +73,7 @@ const WalletOverview = () => {
 
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
+    // Filter tokens with significant value (>= 1% of total)
     const significantTokens = validTokens.filter(token => 
       (token.valueInAda / totalValue) >= 0.01
     );
@@ -92,12 +82,13 @@ const WalletOverview = () => {
       (token.valueInAda / totalValue) < 0.01
     );
 
+    // Prepare chart data
     const chartData = significantTokens.map(token => ({
       name: token.name,
       symbol: token.symbol,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
-      displayAmount: `${token.displayAmount} ${token.symbol}`,
+      displayAmount: token.displayAmount,
       adaEquivalent: `₳${formatTokenAmount(token.valueInAda, 'ADA')}`,
       usdValue: token.usdValue
     }));
@@ -115,6 +106,7 @@ const WalletOverview = () => {
       });
     }
 
+    // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
@@ -205,12 +197,14 @@ const WalletOverview = () => {
           1 ADA = ${formatADA(walletData?.balance.adaPrice || 0)} USD
         </div>
       </Card>
+
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
         <div className="h-72 relative">
           <canvas ref={tokenChartRef} id="token-distribution-chart" />
         </div>
       </Card>
+
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
