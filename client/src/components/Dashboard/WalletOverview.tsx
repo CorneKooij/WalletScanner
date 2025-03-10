@@ -42,32 +42,29 @@ const WalletOverview = () => {
   // Trim token name to prevent overflow
   const trimTokenName = (name: string, maxLength = 15) => {
     if (!name) return 'Unknown';
-    const cleanName = name.replace(/[^\x20-\x7E]/g, ''); // Remove non-printable characters
+    const cleanName = name.replace(/[^\x20-\x7E]/g, '');
     if (cleanName.length <= maxLength) return cleanName;
     return `${cleanName.substring(0, maxLength)}...`;
   };
 
-  // Convert token amount to ADA equivalent based on market prices
+  // Get token value in ADA
   const getTokenValueInAda = (token: Token) => {
     if (!token || !token.balance) return 0;
 
     const balance = Number(token.balance);
     if (balance <= 0) return 0;
 
-    // Handle ADA
+    // For ADA, use the balance directly (already in lovelace)
     if (token.symbol === 'ADA') {
       return balance / 1_000_000; // Convert lovelace to ADA
     }
 
-    // For other tokens with USD value
+    // For other tokens with USD value, convert to ADA equivalent
     if (token.valueUsd && walletData?.balance.usd && walletData?.balance.ada) {
-      // Get ADA price in USD
       const adaPriceUsd = walletData.balance.usd / (Number(walletData.balance.ada) / 1_000_000);
-      // Convert token's USD value to ADA equivalent
       return token.valueUsd / adaPriceUsd;
     }
 
-    // If no USD value but has balance, show the token but mark as "price unavailable"
     return 0;
   };
 
@@ -79,18 +76,18 @@ const WalletOverview = () => {
     const balance = Number(token.balance);
     if (balance <= 0) return false;
 
-    // Exclude ADA handles
+    // Exclude handles
     if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) {
       return false;
     }
 
-    // Only exclude single-quantity NFTs
-    if (token.decimals === 0 && balance === 1) return false;
+    // Exclude single-quantity NFTs
+    if (token.decimals === 0 && balance === 1) {
+      return false;
+    }
 
-    // Must be ADA or have a USD value
-    if (token.symbol !== 'ADA' && !token.valueUsd) return false;
-
-    return true;
+    // Include token if it's ADA or has a USD value
+    return token.symbol === 'ADA' || token.valueUsd !== null;
   };
 
   useEffect(() => {
@@ -106,35 +103,37 @@ const WalletOverview = () => {
       .filter(isValidToken)
       .map(token => {
         const valueInAda = getTokenValueInAda(token);
+        const displayValue = token.symbol === 'ADA'
+          ? formatTokenAmount(Number(token.balance) / 1_000_000, 'ADA')
+          : formatTokenAmount(token.balance, token.symbol);
+
         console.log(`Token ${token.symbol} (${token.name}):`, {
           balance: token.balance,
           valueInAda,
-          valueUsd: token.valueUsd
+          valueUsd: token.valueUsd,
+          displayValue
         });
+
         return {
           name: trimTokenName(token.name || token.symbol),
           symbol: token.symbol,
           valueInAda,
           balance: token.balance,
-          displayValue: token.symbol === 'ADA'
-            ? formatTokenAmount(Number(token.balance) / 1_000_000, 'ADA')
-            : formatTokenAmount(token.balance, token.symbol)
+          displayValue
         };
       })
       .filter(token => token.valueInAda > 0)
       .sort((a, b) => b.valueInAda - a.valueInAda);
 
-    console.log('Valid tokens for chart:', validTokens);
-
     // Calculate total ADA value
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
     // Prepare chart data
-    const significantTokens = validTokens.filter(token => 
+    const significantTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token => 
+    const otherTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) < 0.01
     );
 
@@ -143,7 +142,7 @@ const WalletOverview = () => {
       name: token.name,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
-      rawBalance: token.displayValue,
+      displayValue: token.displayValue,
       adaEquivalent: token.valueInAda
     }));
 
@@ -154,7 +153,7 @@ const WalletOverview = () => {
         name: 'Others',
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
-        rawBalance: `${otherTokens.length} tokens`,
+        displayValue: `${otherTokens.length} tokens`,
         adaEquivalent: othersValue
       });
     }
@@ -184,7 +183,7 @@ const WalletOverview = () => {
               font: { size: 11 },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
-                  text: `${item.name} (${item.rawBalance}) • ₳${formatTokenAmount(item.adaEquivalent, 'ADA')}`,
+                  text: `${item.name} (${item.displayValue}) • ₳${formatTokenAmount(item.adaEquivalent, 'ADA')}`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -198,7 +197,7 @@ const WalletOverview = () => {
               label: (context) => {
                 const item = chartData[context.dataIndex];
                 return [
-                  `Amount: ${item.rawBalance}`,
+                  `Amount: ${item.displayValue}`,
                   `Value: ₳${formatTokenAmount(item.adaEquivalent, 'ADA')} (${item.percentage.toFixed(1)}%)`
                 ];
               }
