@@ -78,7 +78,26 @@ const WalletInput = () => {
           {isLoading ? "Loading..." : "Lookup"}
         </button>
       </div>
-      <p className="mt-1 text-xs text-gray-500">Example: addr1q9u5n39xmgzwzfsxnkgqt3fragk32k4uv4qcwmza0hq2luyr2wfvwkxmp4j2mztw6jm2tmxwdrgxj3pwmcx4au4k5mqhtez9t</p>
+      <div className="mt-1 flex items-center">
+        <p className="text-xs text-gray-500 mr-1">Example:</p>
+        <div 
+          className="text-xs text-gray-500 cursor-pointer hover:text-gray-700 flex items-center" 
+          onClick={() => {
+            navigator.clipboard.writeText("addr1q9u5n39xmgzwzfsxnkgqt3fragk32k4uv4qcwmza0hq2luyr2wfvwkxmp4j2mztw6jm2tmxwdrgxj3pwmcx4au4k5mqhtez9t");
+            toast({
+              title: "Copied",
+              description: "Example address copied to clipboard",
+            });
+          }}
+          title="addr1q9u5n39xmgzwzfsxnkgqt3fragk32k4uv4qcwmza0hq2luyr2wfvwkxmp4j2mztw6jm2tmxwdrgxj3pwmcx4au4k5mqhtez9t"
+        >
+          addr1q9u5n39x...mqhtez9t
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </div>
+      </div>
     </div>
   );
 };
