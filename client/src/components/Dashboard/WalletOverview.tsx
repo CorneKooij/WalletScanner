@@ -41,60 +41,58 @@ const WalletOverview = () => {
     console.log('Initial tokens:', walletData.tokens);
     console.log('ADA price:', walletData.balance.adaPrice);
 
-    // Process all tokens including ADA
-    const validTokens = walletData.tokens
-      .filter(token => {
-        if (!token || !token.balance) return false;
-        const isAda = token.symbol === 'ADA';
-        const rawBalance = Number(token.balance);
+    // First, process ADA token
+    const adaToken = walletData.tokens.find(t => t.symbol === 'ADA');
+    let validTokens = [];
 
-        // For ADA, check positive balance
-        if (isAda) return rawBalance > 0;
+    if (adaToken) {
+      validTokens.push({
+        name: adaToken.name || 'Cardano',
+        symbol: 'ADA',
+        valueInAda: Number(walletData.balance.ada),
+        displayAmount: `${walletData.balance.ada} ADA`,
+        usdValue: formatADA(Number(walletData.balance.ada) * walletData.balance.adaPrice)
+      });
+    }
 
-        // For non-ADA tokens, validate balance and USD value
-        return rawBalance > 0 && token.valueUsd != null && token.valueUsd > 0;
-      })
+    // Then process non-ADA tokens
+    const nonAdaTokens = walletData.tokens
+      .filter(token => token.symbol !== 'ADA')
       .map(token => {
-        const isAda = token.symbol === 'ADA';
-        let valueInAda: number;
-        let displayAmount: string;
+        const rawBalance = Number(token.balance);
+        const valueInAda = token.valueUsd && walletData.balance.adaPrice > 0
+          ? token.valueUsd / walletData.balance.adaPrice
+          : 0;
 
-        if (isAda) {
-          // For ADA, use the converted balance from walletData
-          valueInAda = Number(walletData.balance.ada);
-          displayAmount = `${valueInAda} ADA`;
-        } else {
-          // For other tokens
-          const rawBalance = Number(token.balance);
-          displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
-
-          // Calculate ADA equivalent value from USD
-          valueInAda = token.valueUsd && walletData.balance.adaPrice 
-            ? Number((token.valueUsd / walletData.balance.adaPrice).toFixed(6))
-            : 0;
-        }
+        console.log(`Processing token ${token.symbol}:`, {
+          balance: rawBalance,
+          valueUsd: token.valueUsd,
+          valueInAda
+        });
 
         return {
           name: token.name || token.symbol,
           symbol: token.symbol,
           valueInAda,
-          displayAmount,
+          displayAmount: `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`,
           usdValue: token.valueUsd ? formatADA(token.valueUsd) : '0.00'
         };
       })
-      .filter(token => token.valueInAda > 0)
-      .sort((a, b) => b.valueInAda - a.valueInAda);
+      .filter(token => token.valueInAda > 0);
 
-    console.log('Processed tokens:', validTokens);
+    // Combine and sort all valid tokens
+    validTokens = [...validTokens, ...nonAdaTokens].sort((a, b) => b.valueInAda - a.valueInAda);
+
+    console.log('All valid tokens:', validTokens);
 
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
     // Filter tokens with significant value (>= 1% of total)
-    const significantTokens = validTokens.filter(token => 
+    const significantTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token => 
+    const otherTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) < 0.01
     );
 
@@ -261,7 +259,6 @@ const WalletOverview = () => {
   );
 };
 
-// Helper functions for transaction icons and formatting
 const getTransactionIcon = (type: string) => {
   switch (type) {
     case 'received':
