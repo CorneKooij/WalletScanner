@@ -5,7 +5,6 @@ import { getWalletInfo, getTokenMetadata, getTransactionDetails } from './servic
 import { getTokenPrices } from './services/muesliswapService';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Token prices endpoint remains unchanged
   app.get('/api/prices', async (req, res) => {
     try {
       const prices = await getTokenPrices();
@@ -21,7 +20,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Wallet data endpoint
   app.get('/api/wallet/:address', async (req, res) => {
     try {
       const { address } = req.params;
@@ -52,18 +50,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (walletData.tokens) {
               for (const token of walletData.tokens) {
                 const tokenPrice = tokenPrices.get(token.symbol);
-                const rawBalance = Number(token.quantity || 0);
                 const isLovelace = token.unit === 'lovelace';
-
-                // Convert lovelace to ADA only if it's the native token
-                const convertedBalance = isLovelace ? rawBalance / 1_000_000 : rawBalance;
+                const rawBalance = Number(token.quantity || 0);
+                const balance = isLovelace ? rawBalance / 1_000_000 : rawBalance;
 
                 await storage.createToken({
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: isLovelace ? 'ADA' : (token.symbol || 'UNKNOWN'),
-                  balance: String(convertedBalance), // Store the converted value
-                  valueUsd: tokenPrice ? convertedBalance * tokenPrice.priceUsd : null,
+                  balance: String(balance),
+                  valueUsd: tokenPrice ? balance * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
                 });
@@ -76,12 +72,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const txDetails = await getTransactionDetails(tx.hash, walletData.address);
                   const isLovelace = txDetails.unit === 'lovelace';
                   const rawAmount = Number(txDetails.amount || 0);
-                  const convertedAmount = isLovelace ? rawAmount / 1_000_000 : rawAmount;
+                  const amount = isLovelace ? rawAmount / 1_000_000 : rawAmount;
 
                   await storage.createTransaction({
                     walletId: wallet.id,
                     type: txDetails.type || 'transfer',
-                    amount: String(convertedAmount), // Store the converted value
+                    amount: String(amount),
                     date: new Date(tx.blockTime * 1000),
                     address: txDetails.counterpartyAddress ?
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
@@ -99,12 +95,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (walletData.balance) {
               const rawBalance = Number(walletData.balance);
-              const convertedBalance = rawBalance / 1_000_000; // Balance is always in lovelace
+              const balance = rawBalance / 1_000_000; // Convert from lovelace to ADA
 
               await storage.createBalanceHistory({
                 walletId: wallet.id,
                 date: new Date(),
-                balance: String(convertedBalance) // Store the converted value
+                balance: String(balance)
               });
             }
           } else {
@@ -127,7 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Update token values with current prices - no need to convert balances again
+      // Update token values with current prices
       const updatedTokens = tokens.map(token => ({
         ...token,
         valueUsd: tokenPrices.get(token.symbol)?.priceUsd 
@@ -135,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : null
       }));
 
-      // Find ADA token - balance is already converted
+      // Find ADA token
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
       const adaBalance = adaToken ? adaToken.balance : '0';
 
@@ -143,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         address: wallet.address,
         handle: null,
         balance: {
-          ada: adaBalance, // Already converted
+          ada: adaBalance,
           usd: Number(adaBalance) * adaPrice,
           adaPrice,
           percentChange: calculatePercentChange(history)
@@ -171,8 +167,8 @@ function isStaleData(lastUpdated: Date | null): boolean {
 
 function calculatePercentChange(history: any[]): number {
   if (history.length < 2) return 0;
-  const latest = Number(history[history.length - 1].balance); // Already converted
-  const previous = Number(history[0].balance); // Already converted
+  const latest = Number(history[history.length - 1].balance);
+  const previous = Number(history[0].balance);
   if (previous === 0) return 0;
   return Number(((latest - previous) / previous * 100).toFixed(1));
 }
