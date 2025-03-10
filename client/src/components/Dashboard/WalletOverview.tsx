@@ -126,11 +126,11 @@ const WalletOverview = () => {
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
     // Prepare chart data
-    const significantTokens = validTokens.filter(token => 
+    const significantTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token => 
+    const otherTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) < 0.01
     );
 
@@ -139,8 +139,10 @@ const WalletOverview = () => {
       name: token.name,
       value: token.valueInAda,
       percentage: (token.valueInAda / totalValue * 100),
-      displayValue: token.displayValue,
-      symbol: token.symbol
+      displayValue: token.symbol === 'ADA'
+        ? `₳${formatTokenAmount(token.balance, 'ADA')}`
+        : `${formatTokenAmount(token.balance, token.symbol)} ${token.symbol}`,
+      adaEquivalent: token.valueInAda
     }));
 
     // Add "Others" category if needed
@@ -150,8 +152,8 @@ const WalletOverview = () => {
         name: 'Others',
         value: othersValue,
         percentage: (othersValue / totalValue * 100),
-        displayValue: `₳${formatTokenAmount(othersValue, 'ADA')}`,
-        symbol: 'OTHERS'
+        displayValue: 'Multiple tokens',
+        adaEquivalent: othersValue
       });
     }
 
@@ -180,7 +182,7 @@ const WalletOverview = () => {
               font: { size: 11 },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
-                  text: `${item.name} (${item.displayValue} • ${item.percentage.toFixed(1)}%)`,
+                  text: `${item.name} (${item.displayValue}) • ${item.percentage.toFixed(1)}%`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -193,7 +195,10 @@ const WalletOverview = () => {
             callbacks: {
               label: (context) => {
                 const item = chartData[context.dataIndex];
-                return `${item.name}: ${item.displayValue}\n≈ ₳${formatTokenAmount(item.value, 'ADA')} (${item.percentage.toFixed(1)}%)`;
+                return [
+                  `${item.name}: ${item.displayValue}`,
+                  `Value: ₳${formatTokenAmount(item.adaEquivalent, 'ADA')} (${item.percentage.toFixed(1)}%)`
+                ];
               }
             }
           }
