@@ -34,40 +34,53 @@ export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
     }
 
     const data = await response.json() as any[];
-    console.log('Raw MuesliSwap API response:', JSON.stringify(data.slice(0, 5), null, 2));
+    console.log('MuesliSwap API response status:', response.status);
+    console.log('Number of tokens in response:', data?.length);
+    console.log('First few tokens:', data?.slice(0, 5));
 
     // Process token data
     if (Array.isArray(data)) {
       for (const token of data) {
-        // Skip if no valid price or ticker
-        if (!token.price_ada || !token.ticker) continue;
-
-        const priceInAda = Number(token.price_ada);
-        if (isNaN(priceInAda)) continue;
-
-        const symbol = token.ticker;
-
-        // Calculate USD price using ADA price
-        const priceInUsd = priceInAda * adaUsdPrice;
-
-        prices.set(symbol, {
-          symbol,
-          priceAda: priceInAda,
-          priceUsd: priceInUsd
-        });
-
-        // Log prices for important tokens
-        if (symbol === 'IAG' || symbol === 'HOSKY' || symbol === 'DJED') {
-          console.log(`Token ${symbol} price data:`, {
-            priceInAda,
-            priceInUsd,
-            raw: token
+        try {
+          // Log raw token data for debugging
+          console.log('Processing token:', {
+            ticker: token.ticker,
+            price_ada: token.price_ada,
+            name: token.name
           });
+
+          if (!token.price_ada || !token.ticker) {
+            console.log('Skipping token due to missing data:', token);
+            continue;
+          }
+
+          const priceInAda = Number(token.price_ada);
+          if (isNaN(priceInAda)) {
+            console.log('Invalid price for token:', token);
+            continue;
+          }
+
+          const symbol = token.ticker;
+          const priceInUsd = priceInAda * adaUsdPrice;
+
+          prices.set(symbol, {
+            symbol,
+            priceAda: priceInAda,
+            priceUsd: priceInUsd
+          });
+
+          // Log successful price addition
+          console.log(`Added price for ${symbol}:`, {
+            priceAda: priceInAda,
+            priceUsd: priceInUsd
+          });
+        } catch (tokenError) {
+          console.error('Error processing token:', tokenError, token);
         }
       }
     }
 
-    // Log all available prices
+    // Log summary of all prices
     console.log('Available token prices:', 
       Array.from(prices.entries())
         .map(([symbol, data]) => `${symbol}: ${data.priceAda} ADA`)
