@@ -94,7 +94,7 @@ const WalletHoldings = () => {
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left" align="start" className="max-w-[480px] p-4 space-y-2">
+                  <TooltipContent side="left" align="start" className="max-w-[600px] p-4 space-y-2">
                     <div>
                       <p className="font-medium text-sm">{token.name || 'Unknown Token'}</p>
                       <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
@@ -102,7 +102,9 @@ const WalletHoldings = () => {
                     {token.unit && (
                       <div className="pt-2 border-t border-gray-100">
                         <p className="text-xs font-medium text-gray-500">Token ID</p>
-                        <p className="text-xs mt-1 font-mono break-all select-all w-full">{token.unit}</p>
+                        <div className="mt-1 bg-gray-50 rounded p-2">
+                          <p className="text-xs font-mono break-all select-all w-full leading-relaxed">{token.unit}</p>
+                        </div>
                       </div>
                     )}
                   </TooltipContent>
@@ -121,10 +123,12 @@ const WalletHoldings = () => {
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left" align="end" className="p-4 space-y-2">
+                  <TooltipContent side="left" align="end" className="max-w-[600px] p-4 space-y-2">
                     <div>
                       <p className="text-xs font-medium text-gray-500">Raw Balance</p>
-                      <p className="text-sm font-mono mt-1">{token.balance || '0'}</p>
+                      <div className="mt-1 bg-gray-50 rounded p-2">
+                        <p className="text-sm font-mono break-all select-all">{token.balance || '0'}</p>
+                      </div>
                     </div>
                     {token.symbol === 'ADA' && (
                       <div className="pt-2 border-t border-gray-100">
