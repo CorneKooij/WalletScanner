@@ -34,33 +34,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Store tokens
             const tokens = walletData.tokens || [];
             for (const token of tokens) {
-              const tokenMetadata = await getTokenMetadata(token.unit);
-              if (tokenMetadata) {
-                await storage.createToken({
-                  walletId: wallet.id,
-                  name: tokenMetadata.name,
-                  symbol: tokenMetadata.symbol,
-                  balance: token.quantity,
-                  valueUsd: null // We would need a price feed service for this
-                });
-              }
+              await storage.createToken({
+                walletId: wallet.id,
+                name: token.name || 'Unknown Token',
+                symbol: token.symbol || 'UNKNOWN',
+                balance: token.quantity || '0',
+                valueUsd: null // We would need a price feed service for this
+              });
             }
             
             // Store transactions
             const transactions = walletData.transactions || [];
             for (const tx of transactions) {
-              const txDetails = await getTransactionDetails(tx.hash);
-              await storage.createTransaction({
-                walletId: wallet.id,
-                type: 'transfer', // We would need to analyze inputs/outputs for precise type
-                amount: txDetails.fees,
-                date: new Date(tx.blockTime * 1000),
-                address: address,
-                fullAddress: address,
-                tokenSymbol: 'ADA',
-                tokenAmount: txDetails.fees,
-                explorerUrl: `https://cardanoscan.io/transaction/${tx.hash}`
-              });
+              try {
+                const txDetails = await getTransactionDetails(tx.hash, address);
+                
+                // Create explorer URL
+                const explorerUrl = `https://cardanoscan.io/transaction/${tx.hash}`;
+                
+                // Create a shortened version of the counterparty address for display
+                let displayAddress = null;
+                if (txDetails.counterpartyAddress) {
+                  const addr = txDetails.counterpartyAddress;
+                  displayAddress = addr.substring(0, 8) + '...' + addr.substring(addr.length - 8);
+                }
+                
+                // Store the transaction
+                await storage.createTransaction({
+                  walletId: wallet.id,
+                  type: txDetails.type || 'transfer',
+                  amount: txDetails.amount || txDetails.fees || '0',
+                  date: new Date(tx.blockTime * 1000),
+                  address: displayAddress,
+                  fullAddress: txDetails.counterpartyAddress,
+                  tokenSymbol: txDetails.tokenSymbol || 'ADA',
+                  tokenAmount: txDetails.tokenAmount || '0',
+                  explorerUrl: explorerUrl
+                });
+              } catch (txError) {
+                console.error(`Failed to process transaction ${tx.hash}:`, txError);
+                // Continue with next transaction
+              }
             }
             
             // Store balance history (using current balance as we don't have historical data)
