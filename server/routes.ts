@@ -39,6 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get current token prices
       const tokenPrices = await getTokenPrices();
+      const adaPrice = tokenPrices.get('ADA')?.priceUsd || 0;
 
       // If wallet doesn't exist or data is stale, fetch from Blockfrost
       if (!wallet || isStaleData(wallet.lastUpdated)) {
@@ -65,7 +66,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   walletId: wallet.id,
                   name: token.name || 'Unknown Token',
                   symbol: token.symbol || 'UNKNOWN',
-                  balance: token.quantity || '0',
+                  balance: String(balance), // Store converted balance
                   valueUsd: tokenPrice ? balance * tokenPrice.priceUsd : null,
                   decimals: token.decimals || 0,
                   unit: token.unit
@@ -81,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   await storage.createTransaction({
                     walletId: wallet.id,
                     type: txDetails.type || 'transfer',
-                    amount: txDetails.amount || '0',
+                    amount: String(Number(txDetails.amount || 0) / 1_000_000), // Convert lovelace to ADA
                     date: new Date(tx.blockTime * 1000),
                     address: txDetails.counterpartyAddress ?
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
@@ -101,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createBalanceHistory({
               walletId: wallet.id,
               date: new Date(),
-              balance: String(walletData.balance || '0')
+              balance: String(Number(walletData.balance || 0) / 1_000_000) // Convert lovelace to ADA
             });
           } else {
             // Update existing wallet with fresh price data
@@ -133,21 +134,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         if (price) {
-          // Convert balance for ADA (stored in lovelace)
-          const balance = token.symbol === 'ADA'
-            ? Number(token.balance) / 1_000_000
-            : Number(token.balance);
-
           return {
             ...token,
-            balance: token.symbol === 'ADA' ? String(balance) : token.balance,
-            valueUsd: balance * price.priceUsd
+            valueUsd: Number(token.balance) * price.priceUsd
           };
         }
         return token;
       });
 
-      // Find ADA token and convert from lovelace
+      // Find ADA token
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
       const adaBalance = adaToken ? adaToken.balance : '0';
 
@@ -156,7 +151,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         handle: null,
         balance: {
           ada: adaBalance,
-          usd: updatedTokens.reduce((sum, token) => sum + (Number(token.valueUsd) || 0), 0),
+          usd: Number(adaBalance) * adaPrice,
+          adaPrice: adaPrice,
           percentChange: calculatePercentChange(history)
         },
         tokens: updatedTokens,

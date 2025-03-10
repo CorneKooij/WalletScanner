@@ -281,16 +281,19 @@ const trimTokenName = (name: string, maxLength = 15) => {
           </span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
-        <div className="text-gray-500 text-sm mt-1">≈ ${formatADA(walletData?.balance.usd || 0)} USD</div>
+        <div className="text-gray-500 text-sm mt-1">
+          ≈ ${formatADA(walletData?.balance.usd || 0)} USD
+        </div>
+        <div className="text-gray-400 text-xs mt-2">
+          1 ADA = ${formatADA(walletData?.balance.adaPrice || 0)} USD
+        </div>
       </Card>
-
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
         <div className="h-72 relative">
           <canvas ref={tokenChartRef} id="token-distribution-chart" />
         </div>
       </Card>
-
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
