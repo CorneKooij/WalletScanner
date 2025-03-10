@@ -163,8 +163,17 @@ const TransactionHistory = () => {
                   </td>
                   <td className="py-3 pr-4 hidden sm:table-cell">
                     <div className="flex items-center">
-                      <span className="text-sm text-gray-600 truncate w-24">{tx.address}</span>
-                      <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => handleCopyAddress(tx.fullAddress)}>
+                      <div 
+                        className="text-sm text-gray-600 truncate max-w-[150px]" 
+                        title={tx.fullAddress || tx.address}
+                      >
+                        {tx.address}
+                      </div>
+                      <button 
+                        className="ml-2 text-gray-400 hover:text-gray-600" 
+                        onClick={() => handleCopyAddress(tx.fullAddress || tx.address)}
+                        title="Copy full address"
+                      >
                         <Clipboard className="h-4 w-4" />
                       </button>
                     </div>

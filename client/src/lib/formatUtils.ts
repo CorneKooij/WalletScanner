@@ -28,11 +28,16 @@ export const formatDate = (dateString: string): string => {
 /**
  * Shortens an address for display
  * @param address Full address string
+ * @param prefixLength Length of prefix to show (default: 6)
+ * @param suffixLength Length of suffix to show (default: 6)
  * @returns Shortened address with ellipsis
  */
-export const shortenAddress = (address: string): string => {
+export const shortenAddress = (address: string, prefixLength = 6, suffixLength = 6): string => {
   if (!address) return '';
-  return `${address.substring(0, 6)}...${address.substring(address.length - 6)}`;
+  if (address === 'Contract' || address === 'Stake Pool') return address;
+  if (address.length <= prefixLength + suffixLength + 3) return address;
+  
+  return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
 };
 
 /**
