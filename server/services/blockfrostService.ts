@@ -7,32 +7,51 @@ if (!apiKey) {
 
 const blockfrost = new BlockFrostAPI({
   projectId: apiKey,
-  // Using mainnet by default, but this could be configurable
   network: 'mainnet',
 });
 
-// Add logging for development
 const logApiCall = (method: string, ...args: any[]) => {
   console.log(`[Blockfrost API] Calling ${method} with args:`, ...args);
 };
 
-export async function getWalletInfo(address: string) {
+export async function getWalletInfo(address: string, isHandle = false) {
   try {
-    logApiCall('getWalletInfo', address);
-    
+    logApiCall('getWalletInfo', address, isHandle);
+
+    let resolvedAddress = address;
+
+    // If it's a handle, resolve it to an address first
+    if (isHandle) {
+      try {
+        const handleInfo = await blockfrost.assetsById(`f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a${Buffer.from(address).toString('hex')}`);
+        if (!handleInfo) {
+          throw new Error('Handle not found');
+        }
+        // Get the first transaction that used this handle
+        const txs = await blockfrost.assetTransactions(handleInfo.asset);
+        if (txs.length > 0) {
+          const tx = await blockfrost.txsUtxos(txs[0].tx_hash);
+          resolvedAddress = tx.outputs[0].address;
+        }
+      } catch (error) {
+        console.error('[Blockfrost] Error resolving handle:', error);
+        throw new Error('Handle not found or invalid');
+      }
+    }
+
     // Get address details
-    const addressInfo = await blockfrost.addresses(address);
+    const addressInfo = await blockfrost.addresses(resolvedAddress);
     console.log('[Blockfrost] Address info:', addressInfo);
-    
+
     // Get transaction history
-    const transactions = await blockfrost.addressesTransactions(address, {
-      count: 20, // Limit to latest 20 transactions
+    const transactions = await blockfrost.addressesTransactions(resolvedAddress, {
+      count: 20,
       order: 'desc'
     });
     console.log('[Blockfrost] Found transactions:', transactions.length);
 
     // Get asset balances using UTXO information
-    const utxos = await blockfrost.addressesUtxos(address);
+    const utxos = await blockfrost.addressesUtxos(resolvedAddress);
     console.log('[Blockfrost] Found UTXOs:', utxos.length);
 
     // Aggregate token amounts from UTXOs
@@ -47,62 +66,57 @@ export async function getWalletInfo(address: string) {
 
     // Get token metadata for each token
     const tokens = [];
-    const tokenEntries = Array.from(tokenMap.entries());
-    for (const [unit, quantity] of tokenEntries) {
+    for (const [unit, quantity] of tokenMap.entries()) {
       if (unit === 'lovelace') {
         tokens.push({
           unit,
           quantity,
           name: 'Cardano',
           symbol: 'ADA',
-          displayDecimals: 6
+          decimals: 6
         });
-      } else {
+        continue;
+      }
+
+      try {
+        const metadata = await blockfrost.assetsById(unit);
+        console.log(`[Blockfrost] Metadata for ${unit}:`, metadata);
+
+        const policyId = unit.slice(0, 56);
+        const assetNameHex = unit.slice(56);
+
+        let assetName;
         try {
-          // Only fetch metadata for non-ADA tokens
-          const metadata = await blockfrost.assetsById(unit);
-          console.log(`[Blockfrost] Metadata for ${unit}:`, metadata);
-          
-          // Get the onchain policy and asset name parts from the unit
-          const policyId = unit.slice(0, 56);
-          const assetNameHex = unit.slice(56);
-          
-          // Try to decode asset name from hex
-          let assetName;
-          try {
-            if (assetNameHex) {
-              assetName = Buffer.from(assetNameHex, 'hex').toString();
-            }
-          } catch (e) {
-            console.log(`[Blockfrost] Could not decode asset name for ${unit}:`, e);
-            assetName = assetNameHex;
-          }
-          
-          tokens.push({
-            unit,
-            quantity,
-            name: metadata.metadata?.name || assetName || metadata.asset_name || unit.slice(0, 10) + '...',
-            symbol: metadata.metadata?.ticker || (metadata.asset_name ? metadata.asset_name.slice(0, 5) : unit.slice(0, 5)),
-            decimals: metadata.metadata?.decimals || 0,
-            policyId
-          });
-        } catch (error) {
-          console.log(`[Blockfrost] Error fetching metadata for ${unit}:`, error);
-          tokens.push({
-            unit,
-            quantity,
-            name: unit.slice(0, 15) + '...',
-            symbol: unit.slice(0, 5),
-            decimals: 0
-          });
+          assetName = assetNameHex ? Buffer.from(assetNameHex, 'hex').toString() : undefined;
+        } catch (e) {
+          console.log(`[Blockfrost] Could not decode asset name for ${unit}:`, e);
+          assetName = assetNameHex;
         }
+
+        tokens.push({
+          unit,
+          quantity,
+          name: metadata.metadata?.name || assetName || metadata.asset_name || unit.slice(0, 10) + '...',
+          symbol: metadata.metadata?.ticker || metadata.asset || (assetName ? assetName.slice(0, 5) : unit.slice(0, 5)),
+          decimals: metadata.metadata?.decimals || 0,
+          policyId
+        });
+      } catch (error) {
+        console.log(`[Blockfrost] Error fetching metadata for ${unit}:`, error);
+        tokens.push({
+          unit,
+          quantity,
+          name: unit.slice(0, 15) + '...',
+          symbol: unit.slice(0, 5),
+          decimals: 0
+        });
       }
     }
 
     // Format the response
     return {
-      address,
-      balance: addressInfo.amount[0].quantity, // Amount in Lovelace (1 ADA = 1,000,000 Lovelace)
+      address: resolvedAddress,
+      handle: isHandle ? address : null,
       tokens,
       transactions: transactions.map(tx => ({
         hash: tx.tx_hash,
@@ -112,9 +126,6 @@ export async function getWalletInfo(address: string) {
     };
   } catch (error: any) {
     console.error('[Blockfrost] Error in getWalletInfo:', error);
-    if (error.status_code === 404) {
-      throw new Error('Wallet address not found');
-    }
     throw error;
   }
 }
@@ -128,7 +139,7 @@ export async function getTokenMetadata(unit: string) {
     return {
       name: assetInfo.asset_name || '',
       symbol: assetInfo.asset || '',
-      decimals: 0, // Blockfrost doesn't provide decimals directly
+      decimals: 0, 
       description: assetInfo.onchain_metadata?.description || '',
     };
   } catch (error: any) {
@@ -147,7 +158,7 @@ export async function getTransactionDetails(hash: string, walletAddress: string 
     const normalizedWalletAddress = walletAddress.toLowerCase();
     
     // Check if this wallet is an input (sending) or output (receiving)
-    let type = 'transfer'; // Default type
+    let type = 'transfer'; 
     let amount = '0';
     let tokenSymbol = 'ADA';
     let tokenAmount = '0';
@@ -199,7 +210,7 @@ export async function getTransactionDetails(hash: string, walletAddress: string 
         amount = (outputTotal - inputTotal).toString();
       } else {
         type = 'self-transfer';
-        amount = '0'; // Net transfer amount is 0
+        amount = '0'; 
       }
     } else if (isInput) {
       // This wallet is sending ADA

@@ -38,10 +38,11 @@ const WalletOverview = () => {
   ]);
 
   // Trim token name to prevent overflow
-  const trimTokenName = (name: string, maxLength = 20) => {
-    if (!name) return 'Unknown Token';
-    if (name.length <= maxLength) return name;
-    return `${name.substring(0, maxLength)}...`;
+  const trimTokenName = (name: string, maxLength = 15) => {
+    if (!name) return 'Unknown';
+    const cleanName = name.replace(/[^\x20-\x7E]/g, ''); // Remove non-printable characters
+    if (cleanName.length <= maxLength) return cleanName;
+    return `${cleanName.substring(0, maxLength)}...`;
   };
 
   useEffect(() => {
@@ -52,42 +53,40 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Calculate total portfolio value
-    const adaUsdValue = walletData.balance.usd || 0;
-    const totalValue = walletData.tokens.reduce((sum, token) => {
-      return sum + (token.valueUsd || 0);
-    }, 0);
+    // Calculate total portfolio value and prepare token data
+    const adaBalance = parseFloat(formatTokenAmount(walletData.balance.ada || 0, 'ADA'));
+    let totalValue = walletData.balance.usd || 0;
 
-    // Prepare token data
+    // Filter and transform token data
     const tokenData = walletData.tokens
-      .filter(token => token.valueUsd && token.valueUsd > 0)
+      .filter(token => token.symbol !== 'ADA' && token.balance && parseFloat(token.balance.toString()) > 0)
       .map(token => ({
         name: trimTokenName(token.name || token.symbol),
-        symbol: token.symbol,
-        value: token.valueUsd || 0,
-        percentage: ((token.valueUsd || 0) / totalValue * 100)
+        value: parseFloat(token.balance.toString()),
+        symbol: token.symbol
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Filter significant tokens (>1% of portfolio)
-    const significantTokens = tokenData.filter(token => token.percentage >= 1);
-    const otherTokens = tokenData.filter(token => token.percentage < 1);
+    // Calculate percentages and prepare chart data
+    const total = totalValue;
+    const adaPercentage = ((walletData.balance.usd || 0) / total) * 100;
 
-    // Calculate others total
-    const othersValue = otherTokens.reduce((sum, token) => sum + token.value, 0);
-    const othersPercentage = (othersValue / totalValue) * 100;
+    let labels = ['ADA'];
+    let data = [walletData.balance.usd || 0];
+    let percentages = [adaPercentage];
 
-    // Prepare chart data
-    const labels = [
-      ...significantTokens.map(token => token.name),
-      othersValue > 0 ? 'Others' : null
-    ].filter(Boolean) as string[];
+    // Add significant tokens (>1% of portfolio)
+    tokenData.forEach(token => {
+      const value = token.value;
+      const percentage = (value / total) * 100;
+      if (percentage >= 1) {
+        labels.push(token.name);
+        data.push(value);
+        percentages.push(percentage);
+      }
+    });
 
-    const data = [
-      ...significantTokens.map(token => token.value),
-      othersValue > 0 ? othersValue : null
-    ].filter(Boolean) as number[];
-
+    // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
@@ -112,7 +111,7 @@ const WalletOverview = () => {
               font: { size: 11 },
               generateLabels: (chart) => {
                 return labels.map((label, i) => ({
-                  text: `${label} (${data[i] > 0 ? ((data[i] / totalValue) * 100).toFixed(1) : 0}%)`,
+                  text: `${label} (${percentages[i].toFixed(1)}%)`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -125,7 +124,7 @@ const WalletOverview = () => {
             callbacks: {
               label: (context) => {
                 const value = context.raw as number;
-                const percentage = ((value / totalValue) * 100).toFixed(1);
+                const percentage = ((value / total) * 100).toFixed(1);
                 return `${context.label}: $${formatADA(value)} (${percentage}%)`;
               }
             }
