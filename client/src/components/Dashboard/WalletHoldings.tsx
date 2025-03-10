@@ -77,6 +77,11 @@ const WalletHoldings = () => {
           // Only show unit for non-ADA tokens
           const displayId = token.symbol !== 'ADA' && token.unit ? truncateText(token.unit, 'id') : '';
 
+          // Convert balance for ADA tokens
+          const balance = token.symbol === 'ADA' ? 
+            Number(token.balance) / 1_000_000 : 
+            Number(token.balance);
+
           return (
             <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
               <TooltipProvider>
@@ -117,7 +122,7 @@ const WalletHoldings = () => {
                   <TooltipTrigger asChild>
                     <div className="text-right cursor-help">
                       <div className="font-medium">
-                        {token.symbol === 'ADA' ? '₳' : ''}{formatTokenAmount(token.balance || 0, token.symbol)}
+                        {token.symbol === 'ADA' ? '₳' : ''}{formatTokenAmount(balance, token.symbol)}
                       </div>
                       <div className="text-xs text-gray-500">
                         ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
