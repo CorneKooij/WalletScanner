@@ -46,17 +46,14 @@ const WalletOverview = () => {
     return `${cleanName.substring(0, maxLength)}...`;
   };
 
-  // Check if token should be included in chart
   const isValidToken = (token: Token) => {
     if (!token || !token.balance) return false;
     if (Number(token.balance) <= 0) return false;
 
-    // Exclude ADA handles
     if (token.unit?.startsWith('f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a')) {
       return false;
     }
 
-    // Exclude NFTs (single-quantity tokens)
     if (token.decimals === 0 && Number(token.balance) === 1) {
       return false;
     }
@@ -64,22 +61,19 @@ const WalletOverview = () => {
     return true;
   };
 
-  // Get token value in ADA
   const getTokenValue = (token: Token) => {
     if (!token || !token.balance) return 0;
 
-    // For ADA, use raw balance (already in ADA)
     if (token.symbol === 'ADA') {
       return Number(token.balance);
     }
 
-    // For other tokens, convert their USD value to ADA equivalent
     if (token.valueUsd && walletData?.balance.usd) {
       const adaPriceUsd = walletData.balance.usd / Number(walletData.balance.ada);
       return token.valueUsd / adaPriceUsd;
     }
 
-    return Number(token.balance); // Use raw balance if no USD value
+    return Number(token.balance);
   };
 
   useEffect(() => {
@@ -89,19 +83,11 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Process valid tokens
     const validTokens = walletData.tokens
       .filter(isValidToken)
       .map(token => {
         const valueInAda = getTokenValue(token);
         const displayAmount = formatTokenAmount(token.balance, token.symbol);
-
-        console.log(`Token ${token.symbol}:`, {
-          balance: token.balance,
-          valueInAda,
-          valueUsd: token.valueUsd,
-          displayAmount
-        });
 
         return {
           name: trimTokenName(token.name || token.symbol),
@@ -114,21 +100,16 @@ const WalletOverview = () => {
       .filter(token => token.valueInAda > 0)
       .sort((a, b) => b.valueInAda - a.valueInAda);
 
-    console.log('Valid tokens for chart:', validTokens);
-
-    // Calculate total value in ADA
     const totalValue = validTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
-    // Split tokens by significance (>1% of total value)
-    const significantTokens = validTokens.filter(token => 
+    const significantTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = validTokens.filter(token => 
+    const otherTokens = validTokens.filter(token =>
       (token.valueInAda / totalValue) < 0.01
     );
 
-    // Prepare chart data
     const chartData = significantTokens.map(token => ({
       name: token.name,
       value: token.valueInAda,
@@ -137,7 +118,6 @@ const WalletOverview = () => {
       adaValue: formatTokenAmount(token.valueInAda, 'ADA')
     }));
 
-    // Add "Others" category if needed
     const othersValue = otherTokens.reduce((sum, token) => sum + token.valueInAda, 0);
     if (othersValue > 0) {
       chartData.push({
@@ -149,7 +129,6 @@ const WalletOverview = () => {
       });
     }
 
-    // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
@@ -171,7 +150,10 @@ const WalletOverview = () => {
             labels: {
               padding: 20,
               boxWidth: 12,
-              font: { size: 11 },
+              font: {
+                size: 11,
+                family: "'Inter', system-ui, sans-serif"
+              },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
                   text: `${item.name} (${item.displayAmount})`,
@@ -187,19 +169,34 @@ const WalletOverview = () => {
             callbacks: {
               label: (context) => {
                 const item = chartData[context.dataIndex];
+                const token = validTokens.find(t => t.name === item.name);
+
                 return [
+                  `${item.name} (${token?.symbol || 'Unknown'})`,
                   `Amount: ${item.displayAmount}`,
-                  `Value: ₳${item.adaValue} (${item.percentage.toFixed(1)}%)`
+                  `Value: ₳${item.adaValue}`,
+                  `Share: ${item.percentage.toFixed(1)}%`
                 ];
               }
-            }
+            },
+            padding: 12,
+            titleFont: {
+              size: 14,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: 13
+            },
+            bodySpacing: 8,
+            boxWidth: 400,
+            boxHeight: 'auto',
+            boxPadding: 8
           }
         }
       }
     });
   }, [walletData, isLoading]);
 
-  // Get transaction icon and color based on type
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'received':
@@ -229,7 +226,6 @@ const WalletOverview = () => {
     }
   };
 
-  // Format transaction amount based on type
   const formatTransactionAmount = (tx: Transaction) => {
     if (!tx.amount) return '₳0.00';
 
@@ -245,7 +241,6 @@ const WalletOverview = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      {/* Balance Card */}
       <Card className="bg-white p-6">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-gray-500 font-medium">Total Balance</h2>
@@ -262,7 +257,6 @@ const WalletOverview = () => {
         <div className="text-gray-500 text-sm mt-1">≈ ${formatADA(walletData?.balance.usd || 0)} USD</div>
       </Card>
 
-      {/* Token Distribution Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
         <div className="h-72 relative">
@@ -270,7 +264,6 @@ const WalletOverview = () => {
         </div>
       </Card>
 
-      {/* Recent Activity Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
