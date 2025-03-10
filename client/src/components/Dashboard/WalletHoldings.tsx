@@ -27,7 +27,6 @@ const WalletHoldings = () => {
     );
   }
 
-  // Get token color and symbol based on token name
   const getTokenDetails = (token: Token) => {
     if (!token || !token.symbol) {
       return { bg: 'bg-gray-100', textColor: 'text-gray-500', symbol: '?' };
@@ -46,6 +45,28 @@ const WalletHoldings = () => {
       textColor: 'text-gray-500',
       symbol: token.symbol?.charAt(0)?.toUpperCase() || '?'
     };
+  };
+
+  // Function to format token balance
+  const getTokenBalance = (token: Token) => {
+    const isAda = token.symbol === 'ADA';
+
+    if (isAda) {
+      return walletData.balance.ada;
+    }
+
+    // Check if token should display raw value
+    const showRawValue = token.symbol === 'HONEY' || 
+                        token.symbol === 'TALOS' || 
+                        token.symbol === 'CHAD' ||
+                        token.unit?.includes('686f6e65792e') || // honey
+                        token.unit?.includes('54616c6f73'); // Talos
+
+    if (showRawValue) {
+      return String(Math.floor(Number(token.balance)));
+    }
+
+    return formatTokenAmount(token.balance, token.symbol);
   };
 
   return (
@@ -101,7 +122,7 @@ const WalletHoldings = () => {
                         {isAda ? (
                           `₳${walletData.balance.ada}`
                         ) : (
-                          `${formatTokenAmount(token.balance, token.symbol)}`
+                          getTokenBalance(token)
                         )}
                       </div>
                       <div className="text-xs text-gray-500">

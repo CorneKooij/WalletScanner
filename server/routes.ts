@@ -68,7 +68,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 } else {
                   // For other tokens, store raw values and calculate USD value based on token type
                   const tokenSymbol = token.symbol || 'UNKNOWN';
-                  const noDecimalAdjustment = ['HONEY', 'TALOS', 'CHARLES', 'CHAD'].includes(tokenSymbol);
+                  const noDecimalAdjustment = ['HONEY', 'TALOS', 'CHAD'].includes(tokenSymbol) || 
+                                                token.unit?.includes('686f6e65792e') || // honey
+                                                token.unit?.includes('54616c6f73'); // Talos
                   const decimals = token.decimals || 6;
 
                   // Calculate USD value based on token type
@@ -77,7 +79,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     if (noDecimalAdjustment) {
                       valueUsd = rawBalance * tokenPrice.priceAda * adaPrice;
                     } else {
-                      // For tokens that need decimal adjustment (like IAG)
                       valueUsd = (rawBalance / Math.pow(10, decimals)) * tokenPrice.priceAda * adaPrice;
                     }
                   }
