@@ -9,6 +9,7 @@ interface Token {
   symbol: string;
   balance: string | number;
   valueUsd?: number | null;
+  decimals?: number;
   unit?: string;
 }
 
@@ -40,23 +41,37 @@ const WalletHoldings = () => {
       'MIN': { bg: 'bg-yellow-100', textColor: 'text-yellow-500', symbol: 'M' }
     };
 
-    return symbolMap[token.symbol] || { 
-      bg: 'bg-gray-100', 
-      textColor: 'text-gray-500', 
-      symbol: token.symbol?.charAt(0)?.toUpperCase() || '?' 
+    return symbolMap[token.symbol] || {
+      bg: 'bg-gray-100',
+      textColor: 'text-gray-500',
+      symbol: token.symbol?.charAt(0)?.toUpperCase() || '?'
     };
   };
 
-  // Function to format and truncate text
-  const truncateText = (text: string, type: 'name' | 'id' = 'name') => {
-    if (!text) return type === 'name' ? 'Unknown Token' : '';
-    const cleanText = text.replace(/[^\x20-\x7E]/g, '').trim();
-    const maxLength = type === 'name' ? 15 : 12;
-    if (cleanText.length <= maxLength) return cleanText;
-    if (type === 'id') {
-      return `${cleanText.slice(0, 6)}...${cleanText.slice(-4)}`;
+  // Function to format token balance
+  const formatBalance = (token: Token) => {
+    const rawBalance = Number(token.balance);
+    const isAda = token.symbol === 'ADA';
+
+    if (isAda) {
+      return walletData.balance.ada;
     }
-    return `${cleanText.slice(0, maxLength)}...`;
+
+    // Apply token decimals to get actual balance
+    const decimals = token.decimals || 6;
+    const adjustedBalance = rawBalance / Math.pow(10, decimals);
+
+    // Format with appropriate precision
+    if (adjustedBalance < 0.0001) {
+      return adjustedBalance.toExponential(4);
+    } else if (adjustedBalance < 1) {
+      return adjustedBalance.toFixed(6);
+    } else {
+      return adjustedBalance.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4
+      });
+    }
   };
 
   return (
@@ -66,8 +81,7 @@ const WalletHoldings = () => {
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 0 ? (
         walletData.tokens.map((token: Token, index: number) => {
           const { bg, textColor, symbol } = getTokenDetails(token);
-          const displayName = truncateText(token.name);
-          const displayId = token.symbol !== 'ADA' && token.unit ? truncateText(token.unit, 'id') : '';
+          const displayName = token.name || 'Unknown Token';
           const isAda = token.symbol === 'ADA';
 
           return (
@@ -83,17 +97,17 @@ const WalletHoldings = () => {
                         <div className="font-medium truncate">{displayName}</div>
                         <div className="text-xs text-gray-500 truncate">
                           {token.symbol || 'UNKNOWN'}
-                          {displayId && ` • ${displayId}`}
+                          {token.unit && !isAda && ` • ${token.unit.slice(0, 8)}...${token.unit.slice(-4)}`}
                         </div>
                       </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="left" align="start" className="max-w-[600px] p-4 space-y-2">
                     <div>
-                      <p className="font-medium text-sm">{token.name || 'Unknown Token'}</p>
+                      <p className="font-medium text-sm">{displayName}</p>
                       <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
                     </div>
-                    {token.symbol !== 'ADA' && token.unit && (
+                    {token.unit && !isAda && (
                       <div className="pt-2 border-t border-gray-100">
                         <p className="text-xs font-medium text-gray-500">Token ID</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
@@ -111,11 +125,9 @@ const WalletHoldings = () => {
                     <div className="text-right cursor-help">
                       <div className="font-medium">
                         {isAda ? (
-                          // Use ADA amount from balance object for ADA tokens
                           `₳${walletData.balance.ada}`
                         ) : (
-                          // Use formatTokenAmount for other tokens
-                          formatTokenAmount(token.balance, token.symbol)
+                          formatBalance(token)
                         )}
                       </div>
                       <div className="text-xs text-gray-500">
