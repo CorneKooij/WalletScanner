@@ -46,13 +46,18 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Calculate token values in USD for proper distribution
-    const adaValueUsd = walletData.balance.usd || 0;
-    const tokenValues: { [key: string]: { value: number, name: string } } = {
-      ADA: { value: adaValueUsd, name: 'ADA' }
-    };
-
     // Calculate USD values for all tokens
+    const tokenValues: { [key: string]: { value: number, name: string } } = {};
+
+    // Add ADA value first
+    if (walletData.balance.usd) {
+      tokenValues['ADA'] = {
+        value: walletData.balance.usd,
+        name: 'ADA'
+      };
+    }
+
+    // Add other tokens
     walletData.tokens.forEach(token => {
       if (!token.symbol || token.symbol === 'ADA' || !token.valueUsd) return;
       tokenValues[token.symbol] = {
@@ -61,32 +66,29 @@ const WalletOverview = () => {
       };
     });
 
-    // Sort tokens by value and filter out insignificant ones (less than 1% of total value)
+    // Calculate total value and filter significant tokens (>= 1% of total)
     const totalValue = Object.values(tokenValues).reduce((sum, { value }) => sum + value, 0);
     const significantTokens = Object.entries(tokenValues)
-      .filter(([, { value }]) => (value / totalValue) >= 0.01) // Only show tokens that are at least 1% of total value
+      .filter(([, { value }]) => (value / totalValue) >= 0.01)
       .sort(([, a], [, b]) => b.value - a.value);
 
-    // Calculate "Others" value for remaining tokens
+    // Calculate "Others" category
     const otherTokens = Object.entries(tokenValues)
       .filter(([, { value }]) => (value / totalValue) < 0.01);
     const othersValue = otherTokens.reduce((sum, [, { value }]) => sum + value, 0);
 
-    // Calculate percentages
-    const percentages: { [key: string]: number } = {};
-    significantTokens.forEach(([symbol, { value }]) => {
-      percentages[symbol] = Math.round((value / totalValue) * 100);
-    });
+    // Prepare chart data
+    const labels = significantTokens.map(([, { name }]) => name);
+    const data = significantTokens.map(([, { value }]) => value);
+
+    // Add "Others" category if it exists
     if (othersValue > 0) {
-      percentages['Others'] = Math.round((othersValue / totalValue) * 100);
+      labels.push('Others');
+      data.push(othersValue);
     }
 
-    // Prepare chart data
-    const labels = [...significantTokens.map(([, { name }]) => name)];
-    if (othersValue > 0) labels.push('Others');
-
-    const data = [...significantTokens.map(([, { value }]) => value)];
-    if (othersValue > 0) data.push(othersValue);
+    // Calculate percentages for labels
+    const percentages = data.map(value => Math.round((value / totalValue) * 100));
 
     // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
@@ -108,23 +110,21 @@ const WalletOverview = () => {
             display: true,
             position: 'bottom',
             labels: {
+              padding: 20,
               boxWidth: 12,
-              padding: 15,
               font: {
                 size: 11
               },
               generateLabels: (chart) => {
                 const data = chart.data;
                 if (data.labels?.length && data.datasets.length) {
-                  return data.labels.map((label, index) => {
-                    const percentage = percentages[significantTokens[index]?.[0] || 'Others'];
-                    return {
-                      text: `${label} (${percentage}%)`,
-                      fillStyle: chartColorsRef.current[index],
-                      lineWidth: 0,
-                      index
-                    };
-                  });
+                  return data.labels.map((label, i) => ({
+                    text: `${label} (${percentages[i]}%)`,
+                    fillStyle: chartColorsRef.current[i],
+                    hidden: false,
+                    lineWidth: 0,
+                    index: i
+                  }));
                 }
                 return [];
               }
@@ -132,9 +132,10 @@ const WalletOverview = () => {
           },
           tooltip: {
             callbacks: {
-              label: function(context) {
+              label: (context) => {
                 const value = context.raw as number;
-                return `${context.label}: $${formatADA(value)} (${percentages[significantTokens[context.dataIndex]?.[0] || 'Others']}%)`;
+                const percentage = percentages[context.dataIndex];
+                return `${context.label}: $${formatADA(value)} (${percentage}%)`;
               }
             }
           }
@@ -249,7 +250,7 @@ const WalletOverview = () => {
       {/* Token Distribution Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
-        <div className="h-64 relative"> {/* Increased height to accommodate legend */}
+        <div className="h-72 relative"> {/* Increased height for better legend visibility */}
           <canvas ref={tokenChartRef} id="token-distribution-chart"></canvas>
         </div>
       </Card>
