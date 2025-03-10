@@ -9,6 +9,7 @@ interface Token {
   symbol: string;
   balance: string | number;
   valueUsd?: number | null;
+  unit?: string;
 }
 
 const WalletHoldings = () => {
@@ -46,12 +47,23 @@ const WalletHoldings = () => {
     };
   };
 
-  // Function to format and truncate token name
-  const formatTokenName = (name: string, maxLength = 20) => {
-    if (!name) return 'Unknown Token';
-    const cleanName = name.replace(/[^\x20-\x7E]/g, '').trim(); // Remove non-printable characters
-    if (cleanName.length <= maxLength) return cleanName;
-    return `${cleanName.substring(0, maxLength)}...`;
+  // Function to format and truncate text
+  const truncateText = (text: string, type: 'name' | 'id' = 'name') => {
+    if (!text) return type === 'name' ? 'Unknown Token' : '';
+
+    // Remove non-printable characters
+    const cleanText = text.replace(/[^\x20-\x7E]/g, '').trim();
+
+    // Different lengths for different types
+    const maxLength = type === 'name' ? 15 : 12;
+
+    if (cleanText.length <= maxLength) return cleanText;
+
+    if (type === 'id') {
+      return `${cleanText.slice(0, 6)}...${cleanText.slice(-4)}`;
+    }
+
+    return `${cleanText.slice(0, maxLength)}...`;
   };
 
   return (
@@ -61,24 +73,34 @@ const WalletHoldings = () => {
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 0 ? (
         walletData.tokens.map((token: Token, index: number) => {
           const { bg, textColor, symbol } = getTokenDetails(token);
-          const displayName = formatTokenName(token.name);
+          const displayName = truncateText(token.name);
+          const displayId = token.unit ? truncateText(token.unit, 'id') : '';
+
           return (
             <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center min-w-0">
+                    <div className="flex items-center min-w-0 max-w-[60%]">
                       <div className={`w-8 h-8 ${bg} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
                         <span className={`${textColor} font-semibold`}>{symbol}</span>
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 truncate">
                         <div className="font-medium truncate">{displayName}</div>
-                        <div className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {token.symbol || 'UNKNOWN'}
+                          {displayId && ` • ${displayId}`}
+                        </div>
                       </div>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left">
-                    <p>{token.name || 'Unknown Token'}</p>
+                  <TooltipContent side="left" className="max-w-sm">
+                    <p className="font-medium">{token.name || 'Unknown Token'}</p>
+                    {token.unit && (
+                      <p className="text-xs text-gray-500 mt-1 break-all">
+                        Policy ID: {token.unit}
+                      </p>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

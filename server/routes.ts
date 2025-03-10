@@ -7,32 +7,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
   app.get('/api/wallet/:address', async (req, res) => {
     try {
-      let { address } = req.params;
+      const { address } = req.params;
 
       if (!address) {
-        return res.status(400).json({ message: 'Wallet address or handle is required' });
+        return res.status(400).json({ message: 'Wallet address is required' });
       }
 
-      // Normalize handles
-      // Remove $ prefix if present and handle both formats
-      address = address.trim();
-      const isHandle = address.startsWith('$') || !address.startsWith('addr1');
-      const normalizedAddress = isHandle ? address.replace('$', '') : address;
+      // Basic address validation
+      if (!address.startsWith('addr1')) {
+        return res.status(400).json({ message: 'Invalid Cardano address format' });
+      }
 
       // Try to get wallet from storage first
-      let wallet = await storage.getWalletByAddress(normalizedAddress);
+      let wallet = await storage.getWalletByAddress(address);
 
       // If wallet doesn't exist or data is stale, fetch from Blockfrost
       if (!wallet || isStaleData(wallet.lastUpdated)) {
         try {
-          // Use different endpoint based on whether it's a handle or address
-          const walletData = await getWalletInfo(normalizedAddress, isHandle);
+          const walletData = await getWalletInfo(address);
 
           // Create or update wallet in storage
           if (!wallet) {
             wallet = await storage.createWallet({
               address: walletData.address,
-              handle: isHandle ? normalizedAddress : null,
+              handle: null,
               lastUpdated: new Date()
             });
 
@@ -59,8 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     type: txDetails.type || 'transfer',
                     amount: txDetails.amount || '0',
                     date: new Date(tx.blockTime * 1000),
-                    address: txDetails.counterpartyAddress ? 
-                      `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` : 
+                    address: txDetails.counterpartyAddress ?
+                      `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
                       null,
                     fullAddress: txDetails.counterpartyAddress,
                     tokenSymbol: txDetails.tokenSymbol || 'ADA',
@@ -89,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error: any) {
           console.error('Error fetching data from Blockfrost:', error);
           if (error.status_code === 404) {
-            return res.status(404).json({ message: 'Wallet or handle not found' });
+            return res.status(404).json({ message: 'Wallet not found' });
           } else if (error.status_code === 403 || error.status_code === 401) {
             return res.status(500).json({ message: 'API authentication error' });
           } else if (error.status_code === 429) {
@@ -107,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json({
         address: wallet.address,
-        handle: wallet.handle,
+        handle: null,
         balance: {
           ada: tokens.find(t => t.symbol === 'ADA')?.balance || '0',
           usd: tokens.reduce((sum, token) => sum + (Number(token.valueUsd) || 0), 0),
@@ -141,78 +139,4 @@ function calculatePercentChange(history: any[]): number {
   const previous = Number(history[0].balance);
   if (previous === 0) return 0;
   return Number(((latest - previous) / previous * 100).toFixed(1));
-}
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-}
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-}
-
-function formatChartDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  });
-}
-
-function calculateTokenDistribution(tokens: any[]): any {
-  // Since we don't have USD values, use token quantities as a fallback
-  // Convert lovelace (ADA) to a comparable value (1 ADA = 1,000,000 lovelace)
-  let total = 0;
-  const tokenValues = tokens.map(token => {
-    // Use balance as a numeric value
-    const balance = BigInt(token.balance || '0');
-    // Adjust ADA value to make it comparable with other tokens
-    const adjustedValue = token.symbol === 'ADA'
-      ? Number(balance) / 1000000
-      : Number(balance);
-
-    total += adjustedValue;
-    return {
-      symbol: token.symbol || 'UNKNOWN',
-      value: adjustedValue
-    };
-  });
-
-  if (total === 0) return { ada: 100, other: 0 }; // Default to 100% ADA if no tokens
-
-  // Group by common tokens and "others"
-  const ada = tokenValues.find(t => t.symbol === 'ADA')?.value || 0;
-  let others = total - ada;
-
-  // Calculate percentages, ensuring they add up to 100%
-  const adaPercent = Math.round((ada / total) * 100);
-  const othersPercent = 100 - adaPercent;
-
-  // Create a breakdown of "others" if necessary
-  let othersBreakdown = {};
-  if (others > 0) {
-    // Get top 3 non-ADA tokens
-    const topTokens = tokenValues
-      .filter(t => t.symbol !== 'ADA')
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 3);
-
-    // Calculate percentages for top tokens
-    othersBreakdown = topTokens.reduce((acc: {[key: string]: number}, token) => {
-      acc[token.symbol.toLowerCase()] = Math.round((token.value / total) * 100);
-      return acc;
-    }, {});
-  }
-
-  return {
-    ada: adaPercent,
-    others: othersPercent,
-    breakdown: othersBreakdown
-  };
 }

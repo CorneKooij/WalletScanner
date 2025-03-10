@@ -8,19 +8,11 @@ const WalletInput = () => {
   const { setWalletData, isLoading, setIsLoading } = useWallet();
   const { toast } = useToast();
 
-  // Validate Cardano wallet address or handle
-  const isValidInput = (input: string) => {
-    // Strip $ if present for validation
-    const normalizedInput = input.startsWith('$') ? input.slice(1) : input;
-
-    // Handle format (3+ characters, no spaces)
-    if (normalizedInput.length >= 3 && !normalizedInput.includes(' ')) {
-      return true;
-    }
-
-    // Cardano address validation (basic)
+  // Validate Cardano wallet address
+  const isValidAddress = (address: string) => {
+    // Cardano addresses start with addr1 and are typically 98-103 characters long
     const addressRegex = /^addr1[a-zA-Z0-9]{95,100}$/;
-    return addressRegex.test(normalizedInput);
+    return addressRegex.test(address);
   };
 
   const handleLookup = async () => {
@@ -29,16 +21,16 @@ const WalletInput = () => {
     if (!input) {
       toast({
         title: "Error",
-        description: "Please enter a wallet address or handle",
+        description: "Please enter a wallet address",
         variant: "destructive",
       });
       return;
     }
 
-    if (!isValidInput(input)) {
+    if (!isValidAddress(input)) {
       toast({
-        title: "Invalid Input",
-        description: "Please enter a valid Cardano address or handle",
+        title: "Invalid Address",
+        description: "Please enter a valid Cardano wallet address",
         variant: "destructive",
       });
       return;
@@ -46,9 +38,7 @@ const WalletInput = () => {
 
     try {
       setIsLoading(true);
-      // Strip any $ prefix for API call
-      const searchTerm = input.startsWith('$') ? input.slice(1) : input;
-      const response = await fetch(`/api/wallet/${encodeURIComponent(searchTerm)}`);
+      const response = await fetch(`/api/wallet/${encodeURIComponent(input)}`);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -80,7 +70,7 @@ const WalletInput = () => {
         <input 
           type="text" 
           id="wallet-input" 
-          placeholder="Enter Cardano address or $handle" 
+          placeholder="Enter Cardano wallet address" 
           className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none transition-all"
           value={walletId}
           onChange={(e) => setWalletId(e.target.value)}
@@ -103,13 +93,11 @@ const WalletInput = () => {
         </button>
       </div>
       <div className="mt-1 flex items-center">
-        <p className="text-xs text-gray-500 mr-1">Examples:</p>
-        <div className="text-xs text-gray-500 flex items-center space-x-2">
+        <p className="text-xs text-gray-500 mr-1">Example:</p>
+        <div className="text-xs text-gray-500">
           <span title="addr1q9u5n39xmgzwzfsxnkgqt3fragk32k4uv4qcwmza0hq2luyr2wfvwkxmp4j2mztw6jm2tmxwdrgxj3pwmcx4au4k5mqhtez9t">
             addr1q9u5n39x...mqhtez9t
           </span>
-          <span>or</span>
-          <span>$whiteotter</span>
         </div>
       </div>
     </div>
