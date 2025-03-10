@@ -50,19 +50,12 @@ const WalletHoldings = () => {
   // Function to format and truncate text
   const truncateText = (text: string, type: 'name' | 'id' = 'name') => {
     if (!text) return type === 'name' ? 'Unknown Token' : '';
-
-    // Remove non-printable characters
     const cleanText = text.replace(/[^\x20-\x7E]/g, '').trim();
-
-    // Different lengths for different types
     const maxLength = type === 'name' ? 15 : 12;
-
     if (cleanText.length <= maxLength) return cleanText;
-
     if (type === 'id') {
       return `${cleanText.slice(0, 6)}...${cleanText.slice(-4)}`;
     }
-
     return `${cleanText.slice(0, maxLength)}...`;
   };
 
@@ -77,10 +70,10 @@ const WalletHoldings = () => {
           // Only show unit for non-ADA tokens
           const displayId = token.symbol !== 'ADA' && token.unit ? truncateText(token.unit, 'id') : '';
 
-          // Convert balance for ADA tokens
-          const balance = token.symbol === 'ADA' ? 
-            Number(token.balance) / 1_000_000 : 
-            Number(token.balance);
+          // For ADA tokens, use the balance directly from walletData.balance.ada
+          const displayBalance = token.symbol === 'ADA' ? 
+            walletData.balance.ada : 
+            token.balance;
 
           return (
             <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
@@ -109,7 +102,7 @@ const WalletHoldings = () => {
                       <div className="pt-2 border-t border-gray-100">
                         <p className="text-xs font-medium text-gray-500">Token ID</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-xs font-mono break-all select-all w-full leading-relaxed">{token.unit}</p>
+                          <p className="text-xs font-mono break-all select-all w-full">{token.unit}</p>
                         </div>
                       </div>
                     )}
@@ -122,7 +115,7 @@ const WalletHoldings = () => {
                   <TooltipTrigger asChild>
                     <div className="text-right cursor-help">
                       <div className="font-medium">
-                        {token.symbol === 'ADA' ? '₳' : ''}{formatTokenAmount(balance, token.symbol)}
+                        {token.symbol === 'ADA' ? '₳' : ''}{displayBalance}
                       </div>
                       <div className="text-xs text-gray-500">
                         ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
@@ -131,9 +124,9 @@ const WalletHoldings = () => {
                   </TooltipTrigger>
                   <TooltipContent side="left" align="end" className="max-w-[600px] p-4 space-y-2">
                     <div>
-                      <p className="text-xs font-medium text-gray-500">Raw Balance</p>
+                      <p className="text-xs font-medium text-gray-500">Balance</p>
                       <div className="mt-1 bg-gray-50 rounded p-2">
-                        <p className="text-sm font-mono break-all select-all">{token.balance || '0'}</p>
+                        <p className="text-sm font-mono break-all select-all">{displayBalance}</p>
                       </div>
                     </div>
                     {token.symbol === 'ADA' && (
