@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Card } from '@/components/ui/card';
-import { ArrowDown, ArrowUp, Shuffle } from 'lucide-react';
+import { ArrowDown, ArrowUp, Shuffle, Loader2 } from 'lucide-react';
 import Chart from 'chart.js/auto';
 
 interface Token {
@@ -22,7 +22,7 @@ interface Transaction {
 }
 
 const WalletOverview = () => {
-  const { walletData } = useWallet();
+  const { walletData, isLoading } = useWallet();
   const tokenChartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const chartColorsRef = useRef<string[]>([
@@ -37,46 +37,57 @@ const WalletOverview = () => {
     '#D1D5DB'  // Gray (for Others)
   ]);
 
+  // Trim token name to prevent overflow
+  const trimTokenName = (name: string, maxLength = 20) => {
+    if (!name) return 'Unknown Token';
+    if (name.length <= maxLength) return name;
+    return `${name.substring(0, maxLength)}...`;
+  };
+
   useEffect(() => {
-    if (!tokenChartRef.current || !walletData?.tokens) return;
+    if (!tokenChartRef.current || !walletData?.tokens || isLoading) return;
 
     // Cleanup previous chart
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
     }
 
-    // Calculate token values in USD for distribution
-    let tokens = walletData.tokens.map(token => ({
-      name: token.name || token.symbol,
-      symbol: token.symbol,
-      value: token.valueUsd || 0
-    }));
+    // Calculate total portfolio value
+    const adaUsdValue = walletData.balance.usd || 0;
+    const totalValue = walletData.tokens.reduce((sum, token) => {
+      return sum + (token.valueUsd || 0);
+    }, 0);
 
-    // Sort tokens by value (descending)
-    tokens = tokens.sort((a, b) => b.value - a.value);
+    // Prepare token data
+    const tokenData = walletData.tokens
+      .filter(token => token.valueUsd && token.valueUsd > 0)
+      .map(token => ({
+        name: trimTokenName(token.name || token.symbol),
+        symbol: token.symbol,
+        value: token.valueUsd || 0,
+        percentage: ((token.valueUsd || 0) / totalValue * 100)
+      }))
+      .sort((a, b) => b.value - a.value);
 
-    // Calculate total value for percentages
-    const totalValue = tokens.reduce((sum, token) => sum + token.value, 0);
+    // Filter significant tokens (>1% of portfolio)
+    const significantTokens = tokenData.filter(token => token.percentage >= 1);
+    const otherTokens = tokenData.filter(token => token.percentage < 1);
 
-    // Separate significant tokens (>1% of total) and combine others
-    const significantTokens = tokens.filter(token => (token.value / totalValue) >= 0.01);
-    const otherTokens = tokens.filter(token => (token.value / totalValue) < 0.01);
-    const otherValue = otherTokens.reduce((sum, token) => sum + token.value, 0);
+    // Calculate others total
+    const othersValue = otherTokens.reduce((sum, token) => sum + token.value, 0);
+    const othersPercentage = (othersValue / totalValue) * 100;
 
     // Prepare chart data
-    const labels = [...significantTokens.map(t => t.name)];
-    const data = [...significantTokens.map(t => t.value)];
+    const labels = [
+      ...significantTokens.map(token => token.name),
+      othersValue > 0 ? 'Others' : null
+    ].filter(Boolean) as string[];
 
-    // Add "Others" category if there are small tokens
-    if (otherValue > 0) {
-      labels.push('Others');
-      data.push(otherValue);
-    }
+    const data = [
+      ...significantTokens.map(token => token.value),
+      othersValue > 0 ? othersValue : null
+    ].filter(Boolean) as number[];
 
-    // Calculate percentages for display
-    const percentages = data.map(value => Math.round((value / totalValue) * 100));
-
-    // Create new chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
       type: 'doughnut',
       data: {
@@ -98,12 +109,10 @@ const WalletOverview = () => {
             labels: {
               padding: 20,
               boxWidth: 12,
-              font: {
-                size: 11
-              },
+              font: { size: 11 },
               generateLabels: (chart) => {
                 return labels.map((label, i) => ({
-                  text: `${label} (${percentages[i]}%)`,
+                  text: `${label} (${data[i] > 0 ? ((data[i] / totalValue) * 100).toFixed(1) : 0}%)`,
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
@@ -116,7 +125,7 @@ const WalletOverview = () => {
             callbacks: {
               label: (context) => {
                 const value = context.raw as number;
-                const percentage = percentages[context.dataIndex];
+                const percentage = ((value / totalValue) * 100).toFixed(1);
                 return `${context.label}: $${formatADA(value)} (${percentage}%)`;
               }
             }
@@ -124,7 +133,27 @@ const WalletOverview = () => {
         }
       }
     });
-  }, [walletData]);
+  }, [walletData, isLoading]);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Card className="bg-white p-6 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
+        </Card>
+        <Card className="bg-white p-6 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
+        </Card>
+        <Card className="bg-white p-6 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
+        </Card>
+      </div>
+    );
+  }
+
+  if (!walletData) {
+    return null;
+  }
 
   // Get transaction icon and color based on type
   const getTransactionIcon = (type: string) => {
@@ -170,13 +199,9 @@ const WalletOverview = () => {
 
   const recentTransactions = walletData?.transactions?.slice(0, 3) || [];
 
-  if (!walletData) {
-    return null;
-  }
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      {/* Total Balance Card */}
+      {/* Balance Card */}
       <Card className="bg-white p-6">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-gray-500 font-medium">Total Balance</h2>
@@ -227,7 +252,7 @@ const WalletOverview = () => {
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
         <div className="h-72 relative">
-          <canvas ref={tokenChartRef} id="token-distribution-chart"></canvas>
+          <canvas ref={tokenChartRef} id="token-distribution-chart" />
         </div>
       </Card>
     </div>

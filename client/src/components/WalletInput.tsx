@@ -1,30 +1,26 @@
 import { useState } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const WalletInput = () => {
   const [walletId, setWalletId] = useState("");
-  const { setWalletData, isLoading } = useWallet();
+  const { setWalletData, isLoading, setIsLoading } = useWallet();
   const { toast } = useToast();
 
   // Validate Cardano wallet address or handle
   const isValidInput = (input: string) => {
-    // Handle validation
-    if (input.startsWith('$')) {
-      return input.length > 1; // At least one character after $
-    }
+    // Strip $ if present for validation
+    const normalizedInput = input.startsWith('$') ? input.slice(1) : input;
 
-    // Strip $ if present for handle validation
-    const handle = input.startsWith('$') ? input.slice(1) : input;
-
-    // Handle format (3+ characters)
-    if (handle.length >= 3 && !handle.includes(' ')) {
+    // Handle format (3+ characters, no spaces)
+    if (normalizedInput.length >= 3 && !normalizedInput.includes(' ')) {
       return true;
     }
 
     // Cardano address validation (basic)
     const addressRegex = /^addr1[a-zA-Z0-9]{95,100}$/;
-    return addressRegex.test(input);
+    return addressRegex.test(normalizedInput);
   };
 
   const handleLookup = async () => {
@@ -49,7 +45,8 @@ const WalletInput = () => {
     }
 
     try {
-      // If input starts with $, remove it before sending to API
+      setIsLoading(true);
+      // Strip any $ prefix for API call
       const searchTerm = input.startsWith('$') ? input.slice(1) : input;
       const response = await fetch(`/api/wallet/${encodeURIComponent(searchTerm)}`);
 
@@ -71,6 +68,9 @@ const WalletInput = () => {
         description: error instanceof Error ? error.message : "Failed to fetch wallet data",
         variant: "destructive",
       });
+      setWalletData(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,13 +85,21 @@ const WalletInput = () => {
           value={walletId}
           onChange={(e) => setWalletId(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+          disabled={isLoading}
         />
         <button 
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#2563EB] text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#2563EB] text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
           onClick={handleLookup}
           disabled={isLoading}
         >
-          {isLoading ? "Loading..." : "Lookup"}
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Loading...
+            </>
+          ) : (
+            'Lookup'
+          )}
         </button>
       </div>
       <div className="mt-1 flex items-center">
@@ -101,7 +109,7 @@ const WalletInput = () => {
             addr1q9u5n39x...mqhtez9t
           </span>
           <span>or</span>
-          <span>$charles</span>
+          <span>$whiteotter</span>
         </div>
       </div>
     </div>
