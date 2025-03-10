@@ -48,32 +48,6 @@ const WalletHoldings = () => {
     };
   };
 
-  // Function to format token balance
-  const formatBalance = (token: Token) => {
-    const rawBalance = Number(token.balance);
-    const isAda = token.symbol === 'ADA';
-
-    if (isAda) {
-      return walletData.balance.ada;
-    }
-
-    // Apply token decimals to get actual balance
-    const decimals = token.decimals || 6;
-    const adjustedBalance = rawBalance / Math.pow(10, decimals);
-
-    // Format with appropriate precision
-    if (adjustedBalance < 0.0001) {
-      return adjustedBalance.toExponential(4);
-    } else if (adjustedBalance < 1) {
-      return adjustedBalance.toFixed(6);
-    } else {
-      return adjustedBalance.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 4
-      });
-    }
-  };
-
   return (
     <Card className="bg-white p-6">
       <h2 className="text-xl font-semibold mb-6">Token Holdings</h2>
@@ -127,7 +101,7 @@ const WalletHoldings = () => {
                         {isAda ? (
                           `₳${walletData.balance.ada}`
                         ) : (
-                          formatBalance(token)
+                          `${formatTokenAmount(token.balance, token.symbol)}`
                         )}
                       </div>
                       <div className="text-xs text-gray-500">

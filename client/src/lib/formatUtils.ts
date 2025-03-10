@@ -29,40 +29,46 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
     parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
     amount;
 
-  // Special handling for ADA/lovelace as it's a known case
-  if (symbol?.toUpperCase() === 'ADA' || symbol?.toUpperCase() === 'LOVELACE') {
-    numAmount = numAmount / 1_000_000; // Convert from lovelace to ADA
-    return numAmount.toLocaleString(undefined, {
+  if (isNaN(numAmount)) return '0';
+
+  // Default decimals for different tokens
+  const tokenDecimals: Record<string, number> = {
+    'ADA': 6,      // 1 ADA = 1,000,000 lovelace
+    'TALOS': 6,    // Known to have 6 decimals
+    'CHARLES': 6,  // Known to have 6 decimals
+    'HONEY': 6,    // Known to have 6 decimals
+    'MIN': 6,      // Known to have 6 decimals
+    'IAG': 6       // Known to have 6 decimals
+  };
+
+  const decimals = tokenDecimals[symbol] || 6; // Default to 6 if not specified
+
+  // Adjust the amount based on decimals
+  const adjustedAmount = numAmount / Math.pow(10, decimals);
+
+  // Format based on the adjusted amount
+  if (Math.abs(adjustedAmount) < 0.000001) {
+    // Very small numbers in scientific notation
+    return adjustedAmount.toExponential(2);
+  } else if (Math.abs(adjustedAmount) < 0.01) {
+    // Small numbers with more decimals
+    return adjustedAmount.toFixed(6);
+  } else if (Math.abs(adjustedAmount) < 1) {
+    // Numbers less than 1
+    return adjustedAmount.toFixed(4);
+  } else if (Math.abs(adjustedAmount) < 1000) {
+    // Regular numbers
+    return adjustedAmount.toLocaleString(undefined, {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 6
+      maximumFractionDigits: 2
+    });
+  } else {
+    // Large numbers
+    return adjustedAmount.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     });
   }
-
-  // For other tokens, detect if the value needs decimal adjustment
-  // This assumes large integer values (> 1M) might be in smallest units
-  if (numAmount > 1_000_000 && Number.isInteger(numAmount)) {
-    const magnitude = Math.floor(Math.log10(numAmount));
-    if (magnitude >= 6) {
-      numAmount = numAmount / Math.pow(10, 6);
-    }
-  }
-
-  // Format with appropriate decimal places based on the value
-  const magnitude = Math.abs(numAmount);
-  let decimals = 2; // Default decimal places
-
-  if (magnitude < 0.01) {
-    decimals = 8; // More decimals for very small values
-  } else if (magnitude < 1) {
-    decimals = 6; // More decimals for small values
-  } else if (magnitude >= 1000) {
-    decimals = 2; // Fewer decimals for large values
-  }
-
-  return numAmount.toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
 };
 
 /**
