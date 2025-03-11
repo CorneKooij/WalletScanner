@@ -58,10 +58,8 @@ const WalletHoldings = () => {
             const displayName = token.name || 'Unknown Token';
             const isAda = token.symbol === 'ADA';
 
-            // Store raw balance for tooltip
             const rawBalance = token.balance.toString();
 
-            // Format display balance based on token type
             const formattedBalance = isAda ?
               `₳${walletData.balance.ada}` :
               formatTokenAmount(token.balance, token.symbol, token.decimals);
