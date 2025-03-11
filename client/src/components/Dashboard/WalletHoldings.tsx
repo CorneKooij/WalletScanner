@@ -58,7 +58,10 @@ const WalletHoldings = () => {
             const displayName = token.name || 'Unknown Token';
             const isAda = token.symbol === 'ADA';
 
-            // Pass the raw balance directly to formatTokenAmount without pre-processing
+            // Store raw balance for tooltip
+            const rawBalance = token.balance.toString();
+
+            // Format display balance based on token type
             const formattedBalance = isAda ?
               `₳${walletData.balance.ada}` :
               formatTokenAmount(token.balance, token.symbol, token.decimals);
@@ -90,12 +93,15 @@ const WalletHoldings = () => {
                         <p className="font-medium text-sm">{displayName}</p>
                         <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
                       </div>
-                      {token.unit && !isAda && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">Raw Balance</p>
+                        <div className="mt-1 bg-gray-50 rounded p-2">
+                          <p className="text-sm font-mono break-all select-all">{rawBalance}</p>
+                        </div>
+                      </div>
+                      {isAda && (
                         <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs font-medium text-gray-500">Token ID</p>
-                          <div className="mt-1 bg-gray-50 rounded p-2">
-                            <p className="text-xs font-mono break-all select-all w-full">{token.unit}</p>
-                          </div>
+                          <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
                         </div>
                       )}
                     </TooltipContent>
@@ -120,7 +126,7 @@ const WalletHoldings = () => {
                       <div>
                         <p className="text-xs font-medium text-gray-500">Raw Balance</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{token.balance}</p>
+                          <p className="text-sm font-mono break-all select-all">{rawBalance}</p>
                         </div>
                       </div>
                       {isAda && (
