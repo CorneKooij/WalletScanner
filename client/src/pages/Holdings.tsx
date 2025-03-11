@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { useState } from "react";
 import TabNavigation from "@/components/Dashboard/TabNavigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const Holdings = () => {
   const { walletData } = useWallet();
@@ -62,33 +63,90 @@ const Holdings = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {filteredTokens.map((token, index) => {
             const { bg, textColor, symbol } = getTokenDetails(token);
+            const isAda = token.symbol === 'ADA';
+            const displayName = token.name || 'Unknown';
+
+            // Check if token has a very long symbol that might cause overflow
+            const hasLongSymbol = token.symbol && token.symbol.length > 15;
+
             return (
-              <Card key={index} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <div className={`w-10 h-10 ${bg} rounded-full flex items-center justify-center mr-3`}>
-                      <span className={`${textColor} font-semibold text-lg`}>{symbol}</span>
-                    </div>
-                    <div>
-                      <div className="font-medium">{token.name}</div>
-                      <div className="text-xs text-gray-500">{token.symbol}</div>
-                    </div>
-                  </div>
-                  <div className="text-right min-w-[120px]">
-                    <div className="font-medium truncate max-w-[120px] text-right">
-                      {token.symbol === 'ADA' ? (
-                        <span className="text-[#2563EB]">₳{walletData.balance.ada}</span>
-                      ) : (
-                        formatTokenAmount(token.balance, token.symbol, token.decimals)
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 text-right">
-                      ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
-                    </div>
-                  </div>
+              <Card key={index} className="relative p-4 border border-gray-200 rounded-lg flex items-center">
+                <div className={`w-8 h-8 ${bg} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
+                  <span className={`${textColor} font-semibold`}>{symbol}</span>
+                </div>
+
+                <div className="min-w-0 flex-grow pr-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="cursor-help">
+                          <div className="font-medium truncate max-w-[120px]">{displayName}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                            {hasLongSymbol ? token.symbol.substring(0, 15) + '...' : token.symbol}
+                          </div>
+                          {token.unit && !isAda && (
+                            <div className="text-xs text-gray-400 truncate max-w-[120px]">
+                              {token.unit.slice(0, 8)}...{token.unit.slice(-4)}
+                            </div>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" align="start" className="max-w-[400px] p-4">
+                        <div>
+                          <p className="font-medium text-sm">{displayName}</p>
+                          <p className="text-xs text-gray-500">{token.symbol}</p>
+                        </div>
+                        {token.unit && !isAda && (
+                          <div className="pt-2 border-t border-gray-100 mt-2">
+                            <p className="text-xs font-medium text-gray-500">Token ID</p>
+                            <div className="mt-1 bg-gray-50 rounded p-2">
+                              <p className="text-xs font-mono break-all select-all">{token.unit}</p>
+                            </div>
+                          </div>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+
+                <div className="text-right flex-shrink-0 w-[100px]">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="cursor-help">
+                          <div className="font-medium text-right truncate">
+                            {isAda ? (
+                              <span className="text-[#2563EB]">₳{walletData.balance.ada}</span>
+                            ) : (
+                              formatTokenAmount(token.balance, token.symbol, token.decimals)
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 text-right">
+                            ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" align="end" className="max-w-[400px] p-4">
+                        <div>
+                          <p className="text-xs font-medium text-gray-500">Balance</p>
+                          <div className="mt-1 bg-gray-50 rounded p-2">
+                            <p className="text-sm font-mono break-all select-all">{token.balance}</p>
+                          </div>
+                        </div>
+                        {token.valueUsd && (
+                          <div className="pt-2 mt-2">
+                            <p className="text-xs font-medium text-gray-500">USD Value</p>
+                            <div className="mt-1 bg-gray-50 rounded p-2">
+                              <p className="text-sm font-mono">${formatADA(token.valueUsd)}</p>
+                            </div>
+                          </div>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </Card>
             );
