@@ -44,21 +44,17 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
   }
 
   // For other tokens, respect their decimal places from metadata
-  // If decimals is 0, token can only have whole numbers
-  // If decimals > 0, token can have fractional amounts
   if (decimals === 0) {
-    // For tokens with no decimal places, show whole numbers only
-    return Math.floor(numAmount).toLocaleString(undefined, {
+    // For tokens with no decimal places, show the raw amount as whole numbers
+    return Math.floor(numAmount).toString();
+  } else {
+    // For tokens with decimal places, divide by 10^decimals
+    const adjustedAmount = numAmount / Math.pow(10, decimals || 6);
+    return adjustedAmount.toLocaleString(undefined, {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: decimals || 6
     });
   }
-
-  // For tokens with decimal places, show appropriate precision
-  return numAmount.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: decimals || 6 // Default to 6 if decimals not provided
-  });
 };
 
 /**
