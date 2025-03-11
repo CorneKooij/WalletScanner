@@ -34,14 +34,14 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
 
   // For tokens with zero decimals (indivisible tokens)
   if (decimals === 0) {
-    // For tokens with no decimals, return raw integer value without any transformation
+    // For tokens with no decimals, return raw integer value without ANY decimal processing
     return rawAmount.toString();
   }
 
-  // For tokens with decimal places (like IAGON)
+  // For tokens with decimal places (like IAGON, WMTX)
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
 
-  // Check if the number appears to be in smallest units
+  // Check if the amount is in smallest units and needs adjustment
   const expectedMagnitude = Math.pow(10, tokenDecimals - 1);
   const needsAdjustment = rawAmount > expectedMagnitude;
 
