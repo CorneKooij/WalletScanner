@@ -32,17 +32,20 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
     });
   }
 
-  // For tokens with zero decimals (indivisible tokens)
+  // For tokens with zero decimals (indivisible tokens like HONEY)
   if (decimals === 0) {
-    // Show raw value without any decimal adjustment for tokens with no decimals
-    return rawAmount.toString();
+    // Show raw integer value without any transformations
+    return Math.round(rawAmount).toString();
   }
 
-  // For tokens with decimal places, check if the value needs adjustment
+  // For tokens with decimal places (like IAGON)
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
-  const isInSmallestUnit = rawAmount >= Math.pow(10, tokenDecimals);
 
-  // Only adjust if the number appears to be in smallest units
+  // Determine if this value is already in correct decimal format
+  // by checking magnitude against decimal places
+  const magnitude = Math.floor(Math.log10(rawAmount));
+  const isInSmallestUnit = magnitude >= tokenDecimals;
+
   const finalAmount = isInSmallestUnit ? 
     rawAmount / Math.pow(10, tokenDecimals) : 
     rawAmount;
