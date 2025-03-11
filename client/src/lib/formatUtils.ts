@@ -12,10 +12,6 @@ export const formatADA = (value: number | string, decimals = 2): string => {
 
 /**
  * Formats token amount based on the token's decimal places from metadata
- * @param amount The raw token amount (string or number)
- * @param symbol The token symbol for reference
- * @param decimals The number of decimal places from token metadata
- * @returns Formatted token amount as string
  */
 export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decimals?: number): string => {
   if (!amount) return '0';
@@ -38,16 +34,20 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
 
   // For tokens with zero decimals (indivisible tokens)
   if (decimals === 0) {
-    // For tokens with no decimals, display the raw integer value
-    return Math.floor(Number(rawAmount)).toString();
+    // Show raw value without any decimal adjustment for tokens with no decimals
+    return rawAmount.toString();
   }
 
-  // For tokens with decimal places, always adjust by dividing by 10^decimals
+  // For tokens with decimal places, check if the value needs adjustment
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
-  const adjustedAmount = rawAmount / Math.pow(10, tokenDecimals);
+  const isInSmallestUnit = rawAmount >= Math.pow(10, tokenDecimals);
 
-  // Format with appropriate decimal places
-  return adjustedAmount.toLocaleString(undefined, {
+  // Only adjust if the number appears to be in smallest units
+  const finalAmount = isInSmallestUnit ? 
+    rawAmount / Math.pow(10, tokenDecimals) : 
+    rawAmount;
+
+  return finalAmount.toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: tokenDecimals
   });
