@@ -58,6 +58,14 @@ const WalletHoldings = () => {
             const displayName = token.name || 'Unknown Token';
             const isAda = token.symbol === 'ADA';
 
+            // Get raw balance for tooltip
+            const rawBalance = token.balance.toString();
+
+            // Format display balance using token decimals
+            const formattedBalance = isAda ? 
+              `₳${walletData.balance.ada}` :
+              formatTokenAmount(token.balance, token.symbol, token.decimals);
+
             return (
               <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
                 <TooltipProvider>
@@ -102,13 +110,9 @@ const WalletHoldings = () => {
                     <TooltipTrigger asChild>
                       <div className="text-right cursor-help min-w-[100px]">
                         <div className="font-medium text-right truncate max-w-[100px]">
-                          {isAda ? (
-                            <span className="text-success">₳{walletData.balance.ada}</span>
-                          ) : (
-                            <span className="text-success">
-                              {formatTokenAmount(token.balance, token.symbol, token.decimals)}
-                            </span>
-                          )}
+                          <span className="text-success">
+                            {formattedBalance}
+                          </span>
                         </div>
                         <div className="text-xs text-gray-500 text-right">
                           ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
@@ -119,12 +123,14 @@ const WalletHoldings = () => {
                       <div>
                         <p className="text-xs font-medium text-gray-500">Raw Balance</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{token.balance}</p>
+                          <p className="text-sm font-mono break-all select-all">{rawBalance}</p>
                         </div>
                       </div>
-                      {isAda && (
+                      {token.decimals !== undefined && (
                         <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
+                          <p className="text-xs text-gray-500">
+                            Token Decimals: {token.decimals}
+                          </p>
                         </div>
                       )}
                     </TooltipContent>

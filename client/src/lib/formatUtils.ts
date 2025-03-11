@@ -38,15 +38,17 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
 
   // For tokens with zero decimals (indivisible tokens)
   if (decimals === 0) {
-    // Return the raw amount as a whole number
-    return Math.floor(rawAmount).toString();
+    // Show raw value without any transformation for tokens with no decimals
+    return rawAmount.toString();
   }
 
   // For tokens with decimal places, adjust by dividing by 10^decimals
+  // but only if the number seems to need adjustment (is very large)
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
-  const adjustedAmount = rawAmount / Math.pow(10, tokenDecimals);
+  const needsAdjustment = rawAmount > Math.pow(10, tokenDecimals);
+  const finalAmount = needsAdjustment ? rawAmount / Math.pow(10, tokenDecimals) : rawAmount;
 
-  return adjustedAmount.toLocaleString(undefined, {
+  return finalAmount.toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: tokenDecimals
   });
