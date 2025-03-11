@@ -58,10 +58,7 @@ const WalletHoldings = () => {
             const displayName = token.name || 'Unknown Token';
             const isAda = token.symbol === 'ADA';
 
-            // Get raw balance for tooltip
-            const rawBalance = token.balance.toString();
-
-            // Format display balance using token decimals
+            // Pass the raw balance directly to formatTokenAmount without pre-processing
             const formattedBalance = isAda ? 
               `₳${walletData.balance.ada}` :
               formatTokenAmount(token.balance, token.symbol, token.decimals);
@@ -123,7 +120,7 @@ const WalletHoldings = () => {
                       <div>
                         <p className="text-xs font-medium text-gray-500">Raw Balance</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{rawBalance}</p>
+                          <p className="text-sm font-mono break-all select-all">{token.balance}</p>
                         </div>
                       </div>
                       {token.decimals !== undefined && (
