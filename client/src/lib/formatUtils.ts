@@ -32,10 +32,10 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
     });
   }
 
-  // For tokens with zero decimals (indivisible tokens)
+  // For tokens with zero decimals (indivisible tokens like HONEY)
   if (decimals === 0) {
-    // For tokens with no decimals, return raw integer value without ANY decimal processing
-    return Math.floor(rawAmount).toString();
+    // Return raw integer value with no decimal processing or formatting
+    return String(Math.round(rawAmount));
   }
 
   // For tokens with decimal places (like IAGON, WMTX)
