@@ -85,11 +85,11 @@ const WalletHoldings = () => {
                           <span className={`${textColor} font-semibold`}>{symbol}</span>
                         </div>
                         <div className="min-w-0 truncate">
-                          <div className="font-medium truncate">{displayName}</div>
-                          <div className="text-xs text-gray-500 truncate">
+                          <div className="font-medium truncate max-w-[120px]">{displayName}</div>
+                          <div className="text-xs text-gray-500 truncate max-w-[120px]">
                             {token.symbol || 'UNKNOWN'}
                             {token.unit && !isAda && (
-                              <span className="ml-2 text-gray-400">
+                              <span className="ml-2 text-gray-400 truncate max-w-[120px]">
                                 • {token.unit.slice(0, 8)}...{token.unit.slice(-4)}
                               </span>
                             )}
@@ -117,15 +117,15 @@ const WalletHoldings = () => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="text-right cursor-help">
-                        <div className="font-medium">
+                      <div className="text-right cursor-help min-w-[100px]">
+                        <div className="font-medium text-right truncate max-w-[100px]">
                           {isAda ? (
                             <span className="text-primary">₳{walletData.balance.ada}</span>
                           ) : (
                             getTokenBalance(token)
                           )}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 text-right">
                           ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
                         </div>
                       </div>

@@ -46,7 +46,7 @@ const Holdings = () => {
   return (
     <main>
       <TabNavigation />
-      
+
       <Card className="bg-white p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">All Token Holdings</h2>
@@ -61,7 +61,7 @@ const Holdings = () => {
             <Search className="h-5 w-5 text-gray-400 absolute left-2.5 top-1/2 transform -translate-y-1/2" />
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredTokens.map((token, index) => {
             const { bg, textColor, symbol } = getTokenDetails(token);
@@ -77,16 +77,24 @@ const Holdings = () => {
                       <div className="text-xs text-gray-500">{token.symbol}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-medium">{token.balance.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500">≈ ${formatADA(token.valueUsd)}</div>
+                  <div className="text-right min-w-[120px]">
+                    <div className="font-medium truncate max-w-[120px] text-right">
+                      {token.symbol === 'ADA' ? (
+                        <span className="text-[#2563EB]">₳{walletData.balance.ada}</span>
+                      ) : (
+                        formatTokenAmount(token.balance, token.symbol, token.decimals)
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 text-right">
+                      ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
+                    </div>
                   </div>
                 </div>
               </Card>
             );
           })}
         </div>
-        
+
         {filteredTokens.length === 0 && (
           <div className="text-center py-10">
             <p className="text-gray-500">No tokens found matching your search.</p>

@@ -56,8 +56,14 @@ export const formatTokenAmount = (amount: string | number, symbol?: string, deci
   const divisor = Math.pow(10, tokenDecimals);
   const adjustedAmount = numAmount > divisor * 1000 ? numAmount / divisor : numAmount;
 
-  // Format based on the token's magnitude
-  if (adjustedAmount < 0.01) {
+  // Calculate a reasonable display format based on the number's magnitude
+  // For very large numbers, use compact notation
+  if (adjustedAmount >= 1000000) {
+    return adjustedAmount.toLocaleString(undefined, {
+      notation: 'compact',
+      maximumFractionDigits: 2
+    });
+  } else if (adjustedAmount < 0.01) {
     return adjustedAmount.toLocaleString(undefined, { 
       maximumFractionDigits: tokenDecimals 
     });
