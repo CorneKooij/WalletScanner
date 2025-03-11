@@ -68,26 +68,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 } else {
                   // For other tokens, store raw values and calculate USD value based on token type
                   const tokenSymbol = token.symbol || 'UNKNOWN';
-                  const noDecimalAdjustment = ['HONEY', 'TALOS', 'CHAD'].includes(tokenSymbol) || 
-                                                token.unit?.includes('686f6e65792e') || // honey
-                                                token.unit?.includes('54616c6f73'); // Talos
                   const decimals = token.decimals || 6;
 
-                  // Calculate USD value based on token type
+                  // Calculate USD value based on token decimals
                   let valueUsd = null;
                   if (tokenPrice) {
-                    if (noDecimalAdjustment) {
-                      valueUsd = rawBalance * tokenPrice.priceAda * adaPrice;
-                    } else {
-                      valueUsd = (rawBalance / Math.pow(10, decimals)) * tokenPrice.priceAda * adaPrice;
-                    }
+                    // For tokens with zero decimals, use raw balance
+                    // For tokens with decimals, adjust by the decimal places
+                    const adjustedBalance = decimals === 0 ? 
+                      rawBalance : 
+                      rawBalance / Math.pow(10, decimals);
+
+                    valueUsd = adjustedBalance * tokenPrice.priceAda * adaPrice;
                   }
 
                   await storage.createToken({
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
                     symbol: tokenSymbol,
-                    balance: String(rawBalance), // Store raw amount
+                    balance: String(rawBalance), // Always store raw amount
                     valueUsd,
                     decimals: decimals,
                     unit: token.unit
@@ -165,9 +164,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
 
-        // For non-ADA tokens, apply decimals and calculate current value
+        // For tokens with zero decimals, use raw balance
+        // For tokens with decimals, adjust by the decimal places
         const decimals = token.decimals || 6;
-        const adjustedBalance = rawBalance / Math.pow(10, decimals);
+        const adjustedBalance = decimals === 0 ? 
+          rawBalance : 
+          rawBalance / Math.pow(10, decimals);
+
         const valueInAda = price ? adjustedBalance * price.priceAda : 0;
 
         return {
