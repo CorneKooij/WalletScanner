@@ -1,3 +1,22 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .text-success {
+    @apply text-green-600;
+  }
+  
+  .text-destructive {
+    @apply text-red-600;
+  }
+  
+  .text-info {
+    @apply text-blue-600;
+  }
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
