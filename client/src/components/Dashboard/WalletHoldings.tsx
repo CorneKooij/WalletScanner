@@ -54,17 +54,14 @@ const WalletHoldings = () => {
       return walletData.balance.ada;
     }
 
-    const showRawValue = token.symbol === 'HONEY' || 
-                        token.symbol === 'TALOS' || 
-                        token.symbol === 'CHAD' ||
-                        token.unit?.includes('686f6e65792e') || // honey
-                        token.unit?.includes('54616c6f73'); // Talos
-
-    if (showRawValue) {
+    // Use token.decimals property to determine formatting
+    if (token.decimals === 0) {
+      // Tokens with zero decimal places show as whole numbers
       return String(Math.floor(Number(token.balance)));
     }
-
-    return formatTokenAmount(token.balance, token.symbol);
+    
+    // For tokens with decimal places, format appropriately
+    return formatTokenAmount(token.balance, token.symbol, token.decimals);
   };
 
   return (

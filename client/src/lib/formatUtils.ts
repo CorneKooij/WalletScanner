@@ -20,57 +20,50 @@ export const formatADA = (value: number | string, decimals = 2): string => {
 /**
  * Formats token amount based on the token's requirements
  * @param amount The raw token amount (string or number)
- * @param symbol The token symbol to determine formatting
+ * @param symbol The token symbol for reference
+ * @param decimals The number of decimal places for the token (optional)
  * @returns Formatted token amount as string
  */
-export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): string => {
+export const formatTokenAmount = (amount: string | number, symbol?: string, decimals?: number): string => {
   if (!amount) return '0';
 
   // Convert to number and handle scientific notation
-  let numAmount = typeof amount === 'string' ? 
+  const numAmount = typeof amount === 'string' ? 
     parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
     amount;
 
   if (isNaN(numAmount)) return '0';
 
-  // Special handling for different tokens
-  switch(symbol.toUpperCase()) {
-    case 'ADA':
-      // Convert from lovelace to ADA
-      numAmount = numAmount / 1_000_000;
-      return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 6
-      });
+  // Handle ADA specially (always 6 decimals)
+  if (symbol === 'ADA') {
+    const adaAmount = numAmount / 1_000_000; // Convert from lovelace to ADA
+    return adaAmount.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    });
+  }
 
-    case 'HONEY':
-    case '389A81D09F92E156649049E15DB6E82F8D945BD1520033A0734088BD686F6E65792E':
-    case 'TALOS':
-    case 'CHARLES':
-    case 'CHAD':
-      // Show raw integer values without any formatting for these tokens
-      return Math.floor(Number(amount)).toString();
+  // Token has zero decimals (from token metadata)
+  if (decimals === 0) {
+    return Math.floor(numAmount).toLocaleString();
+  }
 
-    case 'IAG':
-      // Show full precision for IAG
-      return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6
-      });
+  // Use token's decimal places if provided, otherwise default to 6
+  const maxDecimals = decimals !== undefined ? decimals : 6;
 
-    case 'WMTX':
-      // Keep all decimals for WMTX
-      return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6
-      });
-
-    default:
-      // For unknown tokens, show up to 6 decimals if present
-      return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6
-      });
+  // Format based on the token's magnitude
+  if (numAmount < 0.01) {
+    return numAmount.toLocaleString(undefined, { 
+      maximumFractionDigits: maxDecimals 
+    });
+  } else if (numAmount < 1) {
+    return numAmount.toLocaleString(undefined, { 
+      maximumFractionDigits: Math.min(4, maxDecimals) 
+    });
+  } else {
+    return numAmount.toLocaleString(undefined, { 
+      maximumFractionDigits: Math.min(2, maxDecimals) 
+    });
   }
 };
 

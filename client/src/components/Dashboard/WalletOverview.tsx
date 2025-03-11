@@ -54,7 +54,28 @@ const WalletOverview = () => {
           valueInAda = Number(walletData.balance.ada);
           displayAmount = `${valueInAda} ADA`;
         } else {
-          displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
+          // ADA special case
+          if (token.symbol === 'ADA') {
+            displayAmount = `${formatADA(rawBalance / 1_000_000)} ADA`;
+            valueInAda = rawBalance / 1_000_000;
+          } 
+          // Handle other tokens based on their decimals property
+          else {
+            // Check if token has zero decimals from token data
+            const hasZeroDecimals = token.decimals === 0;
+
+            // Display whole numbers for tokens with zero decimals
+            if (hasZeroDecimals) {
+              displayAmount = `${Math.floor(rawBalance)} ${token.symbol}`;
+            }
+            // For tokens with decimals, format according to their decimals property
+            else {
+              const maxDecimals = token.decimals || 6; // Default to 6 if not specified
+              displayAmount = `${Number(rawBalance).toLocaleString(undefined, {
+                maximumFractionDigits: maxDecimals
+              })} ${token.symbol}`;
+            }
+          }
           valueInAda = token.valueUsd && walletData.balance.adaPrice
             ? Number((token.valueUsd / walletData.balance.adaPrice).toFixed(6))
             : 0;
