@@ -51,44 +51,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
               for (const token of walletData.tokens) {
                 const tokenPrice = tokenPrices.get(token.symbol);
                 const isLovelace = token.unit === 'lovelace';
-                const rawBalance = Number(token.quantity || 0);
 
-                // For ADA (lovelace), convert to ADA units
                 if (isLovelace) {
-                  const adaBalance = rawBalance / 1_000_000; // Convert lovelace to ADA
                   await storage.createToken({
                     walletId: wallet.id,
                     name: 'Cardano',
                     symbol: 'ADA',
-                    balance: String(rawBalance), // Store raw lovelace amount
-                    valueUsd: adaBalance * adaPrice,
+                    balance: String(token.quantity || 0),
+                    valueUsd: (Number(token.quantity) / 1_000_000) * adaPrice,
                     decimals: 6,
                     unit: token.unit
                   });
                 } else {
-                  // For other tokens, store raw values and calculate USD value based on token type
                   const tokenSymbol = token.symbol || 'UNKNOWN';
                   const decimals = token.decimals || 6;
+                  const rawBalance = Number(token.quantity || 0);
 
-                  // Calculate USD value based on token decimals
+                  // Calculate USD value based on raw balance
                   let valueUsd = null;
                   if (tokenPrice) {
-                    // For tokens with zero decimals, use raw balance
-                    // For tokens with decimals, adjust by the decimal places
-                    const adjustedBalance = decimals === 0 ? 
-                      rawBalance : 
-                      rawBalance / Math.pow(10, decimals);
-
-                    valueUsd = adjustedBalance * tokenPrice.priceAda * adaPrice;
+                    valueUsd = (rawBalance * tokenPrice.priceAda * adaPrice);
                   }
 
                   await storage.createToken({
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
                     symbol: tokenSymbol,
-                    balance: String(rawBalance), // Always store raw amount
+                    balance: String(rawBalance),
                     valueUsd,
-                    decimals: decimals,
+                    decimals,
                     unit: token.unit
                   });
                 }
@@ -99,20 +90,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               for (const tx of walletData.transactions) {
                 try {
                   const txDetails = await getTransactionDetails(tx.hash, address);
-                  const isLovelace = txDetails.unit === 'lovelace';
-                  const rawAmount = Number(txDetails.amount || 0);
-                  const amount = isLovelace ? rawAmount / 1_000_000 : rawAmount;
 
                   await storage.createTransaction({
                     walletId: wallet.id,
                     type: txDetails.type || 'transfer',
-                    amount: String(amount),
+                    amount: txDetails.amount,
                     date: new Date(tx.blockTime * 1000),
                     address: txDetails.counterpartyAddress ?
                       `${txDetails.counterpartyAddress.slice(0, 8)}...${txDetails.counterpartyAddress.slice(-8)}` :
                       null,
                     fullAddress: txDetails.counterpartyAddress,
-                    tokenSymbol: isLovelace ? 'ADA' : txDetails.tokenSymbol,
+                    tokenSymbol: txDetails.unit === 'lovelace' ? 'ADA' : txDetails.tokenSymbol,
                     tokenAmount: txDetails.tokenAmount,
                     explorerUrl: `https://cardanoscan.io/transaction/${tx.hash}`
                   });
@@ -149,46 +137,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Update token values with current prices
+      // Update token values with current prices without adjusting balances
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         const rawBalance = Number(token.balance);
         const isAda = token.symbol === 'ADA';
 
         if (isAda) {
-          const adaBalance = rawBalance / 1_000_000;
           return {
             ...token,
-            balance: String(adaBalance),
-            valueUsd: adaBalance * adaPrice
+            valueUsd: (rawBalance / 1_000_000) * adaPrice
           };
         }
 
-        // For tokens with zero decimals, use raw balance
-        // For tokens with decimals, adjust by the decimal places
-        const decimals = token.decimals || 6;
-        const adjustedBalance = decimals === 0 ? 
-          rawBalance : 
-          rawBalance / Math.pow(10, decimals);
-
-        const valueInAda = price ? adjustedBalance * price.priceAda : 0;
+        const valueInAda = price ? rawBalance * price.priceAda : 0;
 
         return {
           ...token,
-          balance: String(adjustedBalance),
           valueUsd: valueInAda * adaPrice
         };
       });
 
       // Get ADA balance
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
-      const adaBalance = adaToken ? adaToken.balance : '0';
-
-      // Convert history from lovelace to ADA
-      const convertedHistory = history.map(h => ({
-        ...h,
-        balance: String(Number(h.balance) / 1_000_000)
-      }));
+      const adaBalance = adaToken ? 
+        formatADA(Number(adaToken.balance) / 1_000_000) : 
+        '0';
 
       return res.json({
         address: wallet.address,
@@ -197,12 +171,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ada: adaBalance,
           usd: Number(adaBalance) * adaPrice,
           adaPrice,
-          percentChange: calculatePercentChange(convertedHistory)
+          percentChange: calculatePercentChange(history)
         },
         tokens: updatedTokens,
         transactions,
         nfts,
-        balanceHistory: convertedHistory
+        balanceHistory: history
       });
     } catch (error) {
       console.error('Error processing wallet request:', error);
@@ -226,4 +200,11 @@ function calculatePercentChange(history: any[]): number {
   const previous = Number(history[0].balance);
   if (previous === 0) return 0;
   return Number(((latest - previous) / previous * 100).toFixed(1));
+}
+
+function formatADA(value: number): string {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6
+  });
 }

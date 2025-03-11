@@ -59,7 +59,7 @@ const WalletHoldings = () => {
             const isAda = token.symbol === 'ADA';
 
             // Pass the raw balance directly to formatTokenAmount without pre-processing
-            const formattedBalance = isAda ? 
+            const formattedBalance = isAda ?
               `₳${walletData.balance.ada}` :
               formatTokenAmount(token.balance, token.symbol, token.decimals);
 
@@ -123,11 +123,9 @@ const WalletHoldings = () => {
                           <p className="text-sm font-mono break-all select-all">{token.balance}</p>
                         </div>
                       </div>
-                      {token.decimals !== undefined && (
+                      {isAda && (
                         <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">
-                            Token Decimals: {token.decimals}
-                          </p>
+                          <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
                         </div>
                       )}
                     </TooltipContent>
