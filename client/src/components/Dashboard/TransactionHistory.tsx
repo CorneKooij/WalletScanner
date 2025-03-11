@@ -8,7 +8,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
-// Transaction types for filtering
 const TRANSACTION_TYPES = ['All', 'Received', 'Sent', 'Swaps', 'Staking', 'NFT Activity'];
 
 const TransactionHistory = () => {
@@ -69,38 +68,32 @@ const TransactionHistory = () => {
       case 'received':
         return {
           bg: 'bg-blue-100',
-          icon: <ArrowUp className="h-4 w-4 text-[#2563EB]" />,
+          icon: <ArrowUp className="h-4 w-4 text-primary" />,
           label: 'Received'
         };
       case 'sent':
         return {
           bg: 'bg-red-100',
-          icon: <ArrowDown className="h-4 w-4 text-[#EF4444]" />,
+          icon: <ArrowDown className="h-4 w-4 text-destructive" />,
           label: 'Sent'
         };
       case 'swap':
         return {
           bg: 'bg-purple-100',
-          icon: <Shuffle className="h-4 w-4 text-[#6366F1]" />,
+          icon: <Shuffle className="h-4 w-4 text-info" />,
           label: 'Swap'
         };
       case 'stake_reward':
         return {
           bg: 'bg-green-100',
-          icon: <Zap className="h-4 w-4 text-[#34D399]" />,
+          icon: <Zap className="h-4 w-4 text-success" />,
           label: 'Stake Reward'
-        };
-      case 'transfer':
-        return {
-          bg: 'bg-blue-100',
-          icon: <ArrowUp className="h-4 w-4 text-[#2563EB]" />,
-          label: 'Transfer'
         };
       default:
         return {
           bg: 'bg-gray-100',
           icon: <ArrowDown className="h-4 w-4 text-gray-500" />,
-          label: type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Unknown'
+          label: type.charAt(0).toUpperCase() + type.slice(1)
         };
     }
   };
@@ -115,25 +108,24 @@ const TransactionHistory = () => {
 
     if (tx.type === 'received' || tx.type === 'stake_reward') {
       return (
-        <span className="text-[#34D399] font-medium">
+        <span className="text-success font-medium">
           +₳{formatTokenAmount(tx.amount, 'ADA')}
         </span>
       );
     } else if (tx.type === 'sent') {
       return (
-        <span className="text-[#EF4444] font-medium">
+        <span className="text-destructive font-medium">
           -₳{formatTokenAmount(tx.amount, 'ADA')}
         </span>
       );
     } else if (tx.type === 'swap') {
       return (
-        <span className="text-[#6366F1] font-medium">
+        <span className="text-info font-medium">
           ₳{formatTokenAmount(tx.amount, 'ADA')} → {formatTokenAmount(tx.tokenAmount || '0', tx.tokenSymbol)} {tx.tokenSymbol || 'TOKEN'}
         </span>
       );
     }
 
-    // Default case for other transaction types
     if (symbol === 'ADA') {
       return <span className="font-medium">₳{formatTokenAmount(tx.amount, symbol)}</span>;
     } else {
@@ -205,7 +197,7 @@ const TransactionHistory = () => {
               key={type}
               className={`px-3 py-1 text-sm rounded-full whitespace-nowrap ${
                 selectedType === type
-                  ? 'bg-[#2563EB] text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               onClick={() => setSelectedType(type)}
@@ -253,9 +245,7 @@ const TransactionHistory = () => {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="flex items-center cursor-help">
-                              <div
-                                className="text-sm text-gray-600 truncate max-w-[150px]"
-                              >
+                              <div className="text-sm text-gray-600 truncate max-w-[150px]">
                                 {tx.address || 'No address'}
                               </div>
                               {(tx.fullAddress || tx.address) && (
@@ -282,7 +272,7 @@ const TransactionHistory = () => {
                                   href={tx.explorerUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-[#2563EB] hover:underline flex items-center"
+                                  className="text-xs text-primary hover:underline flex items-center"
                                 >
                                   View on Explorer <ExternalLink className="h-3 w-3 ml-1" />
                                 </a>
@@ -294,7 +284,14 @@ const TransactionHistory = () => {
                     </td>
                     <td className="py-3 text-right">
                       {tx.explorerUrl ? (
-                        <a href={tx.explorerUrl} target="_blank" rel="noopener noreferrer" className="text-[#2563EB] text-sm">View</a>
+                        <a
+                          href={tx.explorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary text-sm hover:underline"
+                        >
+                          View
+                        </a>
                       ) : (
                         <span className="text-gray-400 text-sm">N/A</span>
                       )}
@@ -319,20 +316,22 @@ const TransactionHistory = () => {
           {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} transactions
         </div>
         <div className="flex space-x-2">
-          <button
-            className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             Previous
-          </button>
-          <button
-            className="px-3 py-1 text-sm rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
           >
             Next
-          </button>
+          </Button>
         </div>
       </div>
     </Card>

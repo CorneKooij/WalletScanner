@@ -19,10 +19,10 @@ const WalletOverview = () => {
   const tokenChartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const chartColorsRef = useRef<string[]>([
-    '#2563EB', // ADA Blue
-    '#34D399', // Green
-    '#6366F1', // Purple
-    '#FB923C', // Orange
+    '#2563EB', // Primary
+    '#34D399', // Success
+    '#6366F1', // Info
+    '#FB923C', // Warning
     '#F472B6', // Pink
     '#FBBF24', // Yellow
     '#EC4899', // Hot Pink
@@ -37,11 +37,6 @@ const WalletOverview = () => {
       chartInstanceRef.current.destroy();
     }
 
-    // Debug logs
-    console.log('Initial tokens:', walletData.tokens);
-    console.log('ADA price:', walletData.balance.adaPrice);
-
-    // Process tokens
     const processedTokens = walletData.tokens
       .filter(token => {
         if (!token || !token.balance) return false;
@@ -52,7 +47,6 @@ const WalletOverview = () => {
         const isAda = token.symbol === 'ADA';
         const rawBalance = Number(token.balance);
 
-        // Calculate token value in ADA
         let valueInAda = 0;
         let displayAmount = '';
 
@@ -61,18 +55,10 @@ const WalletOverview = () => {
           displayAmount = `${valueInAda} ADA`;
         } else {
           displayAmount = `${formatTokenAmount(rawBalance, token.symbol)} ${token.symbol}`;
-          // For non-ADA tokens, get value directly from token data
           valueInAda = token.valueUsd && walletData.balance.adaPrice
             ? Number((token.valueUsd / walletData.balance.adaPrice).toFixed(6))
             : 0;
         }
-
-        console.log(`Token ${token.symbol} processed:`, {
-          rawBalance,
-          valueInAda,
-          valueUsd: token.valueUsd,
-          displayAmount
-        });
 
         return {
           name: token.name || token.symbol,
@@ -85,10 +71,7 @@ const WalletOverview = () => {
       .filter(token => token.valueInAda > 0)
       .sort((a, b) => b.valueInAda - a.valueInAda);
 
-    console.log('Processed tokens:', processedTokens);
-
     const totalValue = processedTokens.reduce((sum, token) => sum + token.valueInAda, 0);
-    console.log('Total value in ADA:', totalValue);
 
     // Filter tokens with significant value (>= 1% of total)
     const significantTokens = processedTokens.filter(token => 
@@ -98,9 +81,6 @@ const WalletOverview = () => {
     const otherTokens = processedTokens.filter(token => 
       (token.valueInAda / totalValue) < 0.01
     );
-
-    console.log('Significant tokens:', significantTokens);
-    console.log('Other tokens:', otherTokens);
 
     // Prepare chart data
     const chartData = significantTokens.map(token => ({
@@ -126,8 +106,6 @@ const WalletOverview = () => {
         usdValue: formatADA(othersValue * walletData.balance.adaPrice)
       });
     }
-
-    console.log('Final chart data:', chartData);
 
     // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
@@ -200,10 +178,11 @@ const WalletOverview = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      {/* Total Balance Card */}
       <Card className="bg-white p-6">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-gray-500 font-medium">Total Balance</h2>
-          <div className="bg-[#34D399]/10 text-[#34D399] text-sm font-medium px-2 py-1 rounded">
+          <div className="bg-success/10 text-success text-sm font-medium px-2 py-1 rounded">
             +{walletData?.balance.percentChange}% ↑
           </div>
         </div>
@@ -221,6 +200,7 @@ const WalletOverview = () => {
         </div>
       </Card>
 
+      {/* Token Distribution Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
         <div className="h-72 relative">
@@ -228,6 +208,7 @@ const WalletOverview = () => {
         </div>
       </Card>
 
+      {/* Recent Activity Card */}
       <Card className="bg-white p-6">
         <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
         <div className="space-y-3">
@@ -252,7 +233,7 @@ const WalletOverview = () => {
           })}
         </div>
         <button
-          className="mt-4 text-[#2563EB] text-sm font-medium"
+          className="mt-4 text-primary text-sm font-medium hover:underline"
           onClick={() => window.location.href = "/transactions"}
         >
           View all transactions →
@@ -267,20 +248,20 @@ const getTransactionIcon = (type: string) => {
     case 'received':
       return {
         bg: 'bg-blue-100',
-        icon: <ArrowUp className="h-4 w-4 text-[#2563EB]" />,
-        color: 'text-[#34D399]'
+        icon: <ArrowUp className="h-4 w-4 text-primary" />,
+        color: 'text-success'
       };
     case 'sent':
       return {
         bg: 'bg-red-100',
-        icon: <ArrowDown className="h-4 w-4 text-[#EF4444]" />,
-        color: 'text-[#EF4444]'
+        icon: <ArrowDown className="h-4 w-4 text-destructive" />,
+        color: 'text-destructive'
       };
     case 'swap':
       return {
         bg: 'bg-purple-100',
-        icon: <Shuffle className="h-4 w-4 text-[#6366F1]" />,
-        color: 'text-[#6366F1]'
+        icon: <Shuffle className="h-4 w-4 text-info" />,
+        color: 'text-info'
       };
     default:
       return {
