@@ -36,6 +36,7 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
 
   // Special handling for ADA which always has 6 decimals (lovelace conversion)
   if (symbol.toUpperCase() === 'ADA') {
+    // Convert from lovelace to ADA
     numAmount = numAmount / 1_000_000;
     return numAmount.toLocaleString(undefined, {
       minimumFractionDigits: 2,
@@ -43,26 +44,24 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
     });
   }
 
-  // For other tokens, respect their decimal places from metadata
+  // For tokens with zero decimals (indivisible tokens)
   if (decimals === 0) {
-    // For tokens with no decimal places, show the raw amount as whole numbers
+    // Display raw amount without any decimal adjustment
     return Math.floor(numAmount).toString();
-  } else {
-    // For tokens with decimal places, divide by 10^decimals
-    const adjustedAmount = numAmount / Math.pow(10, decimals || 6);
-    return adjustedAmount.toLocaleString(undefined, {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: decimals || 6
-    });
   }
+
+  // For tokens with decimal places, divide by the appropriate power of 10
+  const tokenDecimals = decimals || 6; // Default to 6 if not specified
+  numAmount = numAmount / Math.pow(10, tokenDecimals);
+
+  return numAmount.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: tokenDecimals
+  });
 };
 
 /**
  * Shortens an address for display
- * @param address Full address string
- * @param prefixLength Length of prefix to show (default: 6)
- * @param suffixLength Length of suffix to show (default: 6)
- * @returns Shortened address with ellipsis
  */
 export const shortenAddress = (address: string, prefixLength = 6, suffixLength = 6): string => {
   if (!address) return '';
@@ -72,8 +71,6 @@ export const shortenAddress = (address: string, prefixLength = 6, suffixLength =
 
 /**
  * Converts a block timestamp to a human-readable date and time
- * @param timestamp Block timestamp in seconds
- * @returns Object with formatted date and time
  */
 export const timestampToDateTime = (timestamp: number): { date: string; time: string } => {
   const date = new Date(timestamp * 1000);
