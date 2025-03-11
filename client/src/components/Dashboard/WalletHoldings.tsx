@@ -58,9 +58,9 @@ const WalletHoldings = () => {
             const displayName = token.name || 'Unknown Token';
             const isAda = token.symbol === 'ADA';
 
-            // Calculate formatted balance once and use it for both display and tooltip
+            // Use formatTokenAmount consistently for both display and tooltip
             const formattedBalance = isAda ?
-              `₳${walletData.balance.ada}` :
+              walletData.balance.ada :
               formatTokenAmount(token.balance, token.symbol, token.decimals);
 
             return (
@@ -88,7 +88,7 @@ const WalletHoldings = () => {
                       <div>
                         <p className="text-xs font-medium text-gray-500">Balance</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{formattedBalance}</p>
+                          <p className="text-sm font-mono break-all select-all">{isAda ? `₳${formattedBalance}` : formattedBalance}</p>
                         </div>
                       </div>
                       {isAda && (
@@ -103,7 +103,7 @@ const WalletHoldings = () => {
                 <div className="text-right min-w-[100px]">
                   <div className="font-medium text-right truncate max-w-[100px]">
                     <span className="text-success">
-                      {formattedBalance}
+                      {isAda ? `₳${formattedBalance}` : formattedBalance}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 text-right">
