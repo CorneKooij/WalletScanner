@@ -54,13 +54,13 @@ const WalletHoldings = () => {
       return walletData.balance.ada;
     }
 
-    // Use token.decimals property to determine formatting
+    // Use token.decimals property from blockchain data to determine formatting
     if (token.decimals === 0) {
       // Tokens with zero decimal places show as whole numbers
       return String(Math.floor(Number(token.balance)));
     }
-    
-    // For tokens with decimal places, format appropriately
+
+    // For tokens with decimals, format appropriately using the token's own decimal places
     return formatTokenAmount(token.balance, token.symbol, token.decimals);
   };
 

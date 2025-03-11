@@ -48,21 +48,26 @@ export const formatTokenAmount = (amount: string | number, symbol?: string, deci
     return Math.floor(numAmount).toLocaleString();
   }
 
-  // Use token's decimal places if provided, otherwise default to 6
-  const maxDecimals = decimals !== undefined ? decimals : 6;
+  // Get the token's decimal places from blockchain data, default to 6 if not specified
+  const tokenDecimals = decimals !== undefined ? decimals : 6;
+
+  // For tokens with decimal places, divide by 10^decimals if the number is very large
+  // This handles the case where the token amount is expressed in the smallest unit
+  const divisor = Math.pow(10, tokenDecimals);
+  const adjustedAmount = numAmount > divisor * 1000 ? numAmount / divisor : numAmount;
 
   // Format based on the token's magnitude
-  if (numAmount < 0.01) {
-    return numAmount.toLocaleString(undefined, { 
-      maximumFractionDigits: maxDecimals 
+  if (adjustedAmount < 0.01) {
+    return adjustedAmount.toLocaleString(undefined, { 
+      maximumFractionDigits: tokenDecimals 
     });
-  } else if (numAmount < 1) {
-    return numAmount.toLocaleString(undefined, { 
-      maximumFractionDigits: Math.min(4, maxDecimals) 
+  } else if (adjustedAmount < 1) {
+    return adjustedAmount.toLocaleString(undefined, { 
+      maximumFractionDigits: Math.min(4, tokenDecimals) 
     });
   } else {
-    return numAmount.toLocaleString(undefined, { 
-      maximumFractionDigits: Math.min(2, maxDecimals) 
+    return adjustedAmount.toLocaleString(undefined, { 
+      maximumFractionDigits: Math.min(2, tokenDecimals) 
     });
   }
 };
