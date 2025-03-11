@@ -59,13 +59,13 @@ const Transactions = () => {
       case 'received':
         return {
           bg: 'bg-blue-100',
-          icon: <ArrowUp className="h-4 w-4 text-primary" />,
+          icon: <ArrowDown className="h-4 w-4 text-primary" />,
           label: 'Received'
         };
       case 'sent':
         return {
           bg: 'bg-red-100',
-          icon: <ArrowDown className="h-4 w-4 text-destructive" />,
+          icon: <ArrowUp className="h-4 w-4 text-destructive" />,
           label: 'Sent'
         };
       case 'swap':
