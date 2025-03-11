@@ -24,6 +24,8 @@ export const formatADA = (value: number | string, decimals = 2): string => {
  * @returns Formatted token amount as string
  */
 export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): string => {
+  if (!amount) return '0';
+
   // Convert to number and handle scientific notation
   let numAmount = typeof amount === 'string' ? 
     parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
@@ -41,25 +43,25 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA'): stri
         maximumFractionDigits: 6
       });
 
-    case 'IAG':
-      // Show IAG with full decimal precision
-      return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 6,
-        maximumFractionDigits: 6
-      });
-
     case 'HONEY':
     case '389A81D09F92E156649049E15DB6E82F8D945BD1520033A0734088BD686F6E65792E':
     case 'TALOS':
     case 'CHARLES':
     case 'CHAD':
-      // Show raw integer values without any formatting
-      return Math.floor(numAmount).toString();
+      // Show raw integer values without any formatting for these tokens
+      return Math.floor(Number(amount)).toString();
+
+    case 'IAG':
+      // Show full precision for IAG
+      return numAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 6
+      });
 
     case 'WMTX':
       // Keep all decimals for WMTX
       return numAmount.toLocaleString(undefined, {
-        minimumFractionDigits: 6,
+        minimumFractionDigits: 0,
         maximumFractionDigits: 6
       });
 
