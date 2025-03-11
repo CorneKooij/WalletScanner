@@ -63,10 +63,11 @@ const WalletHoldings = () => {
               `₳${walletData.balance.ada}` :
               formatTokenAmount(token.balance, token.symbol, token.decimals);
 
-            // For tooltip: show raw balance for non-decimal tokens, formatted for decimal tokens
-            const tooltipBalance = isAda ? token.balance : // Show lovelace for ADA
-              (token.decimals === 0 ? token.balance : // Show raw balance for non-decimal tokens
-                formatTokenAmount(token.balance, token.symbol, token.decimals)); // Show formatted for decimal tokens
+            // For tooltip: show formatted value for both ADA and decimal tokens,
+            // raw balance only for non-decimal tokens
+            const tooltipBalance = isAda ? 
+              walletData.balance.ada : // Show formatted ADA
+              formatTokenAmount(token.balance, token.symbol, token.decimals); // Show formatted for all tokens
 
             return (
               <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
@@ -98,7 +99,7 @@ const WalletHoldings = () => {
                       </div>
                       {isAda && (
                         <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
+                          <p className="text-xs text-gray-500">Raw Balance (lovelace): {token.balance}</p>
                         </div>
                       )}
                     </TooltipContent>
