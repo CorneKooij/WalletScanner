@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getWalletInfo, getTokenMetadata, getTransactionDetails } from './services/blockfrostService';
 import { getTokenPrices } from './services/muesliswapService';
+import { formatTokenAmount } from '../client/src/lib/formatUtils';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/prices', async (req, res) => {
@@ -54,27 +55,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const rawBalance = Number(token.quantity || 0);
 
                 if (isLovelace) {
+                  const formattedBalance = formatTokenAmount(rawBalance, 'ADA', 6);
                   await storage.createToken({
                     walletId: wallet.id,
                     name: 'Cardano',
                     symbol: 'ADA',
-                    balance: String(rawBalance), // Store raw lovelace amount
-                    valueUsd: (rawBalance / 1_000_000) * adaPrice, // Convert to ADA for USD value
+                    balance: String(rawBalance), // Raw lovelace
+                    formattedBalance, // Formatted ADA amount
+                    valueUsd: (rawBalance / 1_000_000) * adaPrice,
                     decimals: 6,
                     unit: token.unit
                   });
                 } else {
                   const tokenSymbol = token.symbol || 'UNKNOWN';
-                  const decimals = token.decimals || 0; // Default to 0 decimals unless specified
+                  const decimals = token.decimals || 0; // Default to 0 for non-decimal tokens
+                  const formattedBalance = formatTokenAmount(rawBalance, tokenSymbol, decimals);
 
-                  // Calculate USD value based on token type
                   let valueUsd = null;
                   if (tokenPrice) {
                     if (decimals === 0) {
-                      // For non-decimal tokens (HONEY, TALOS), use raw balance
                       valueUsd = rawBalance * tokenPrice.priceAda * adaPrice;
                     } else {
-                      // For decimal tokens (IAGON, WMTX), adjust by decimals
                       valueUsd = (rawBalance / Math.pow(10, decimals)) * tokenPrice.priceAda * adaPrice;
                     }
                   }
@@ -83,7 +84,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
                     symbol: tokenSymbol,
-                    balance: String(rawBalance), // Always store raw balance
+                    balance: String(rawBalance), // Raw balance
+                    formattedBalance, // Pre-calculated formatted balance
                     valueUsd: valueUsd ? String(valueUsd) : null,
                     decimals,
                     unit: token.unit
@@ -143,9 +145,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Return the stored values without recalculation
+      // Update USD values only, use pre-calculated formatted balances
       const updatedTokens = tokens.map(token => {
-        // Only update USD values based on current prices, no balance adjustments
         const price = tokenPrices.get(token.symbol);
         const rawBalance = Number(token.balance);
         const isAda = token.symbol === 'ADA';
@@ -155,10 +156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           valueUsd = (rawBalance / 1_000_000) * adaPrice;
         } else if (price) {
           if (token.decimals === 0) {
-            // For non-decimal tokens, use raw balance
             valueUsd = rawBalance * price.priceAda * adaPrice;
           } else {
-            // For decimal tokens, adjust by decimals
             valueUsd = (rawBalance / Math.pow(10, token.decimals)) * price.priceAda * adaPrice;
           }
         }
@@ -169,11 +168,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      // Get ADA balance from stored raw value
+      // Get ADA balance from formatted value
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
-      const adaBalance = adaToken ? 
-        formatADA(Number(adaToken.balance) / 1_000_000) : 
-        '0';
+      const adaBalance = adaToken?.formattedBalance || '0';
 
       return res.json({
         address: wallet.address,
