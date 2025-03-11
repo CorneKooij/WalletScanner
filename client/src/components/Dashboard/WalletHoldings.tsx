@@ -72,7 +72,7 @@ const WalletHoldings = () => {
                           <div className="text-xs text-gray-500 truncate max-w-[120px]">
                             {token.symbol || 'UNKNOWN'}
                             {token.unit && !isAda && (
-                              <span className="ml-2 text-gray-400 truncate max-w-[120px]">
+                              <span className="ml-2 text-gray-400">
                                 • {token.unit.slice(0, 8)}...{token.unit.slice(-4)}
                               </span>
                             )}
@@ -117,7 +117,7 @@ const WalletHoldings = () => {
                     </TooltipTrigger>
                     <TooltipContent side="left" align="end" className="max-w-[600px] p-4 space-y-2">
                       <div>
-                        <p className="text-xs font-medium text-gray-500">Balance</p>
+                        <p className="text-xs font-medium text-gray-500">Raw Balance</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
                           <p className="text-sm font-mono break-all select-all">{token.balance}</p>
                         </div>
