@@ -127,10 +127,10 @@ const TransactionHistory = () => {
     }
 
     if (symbol === 'ADA') {
-      return <span className="font-medium">₳{formatTokenAmount(tx.amount, symbol)}</span>;
+      return <span className="text-success font-medium">₳{formatTokenAmount(tx.amount, symbol)}</span>;
     } else {
       return (
-        <span className="font-medium">
+        <span className="text-success font-medium">
           {formatTokenAmount(tx.tokenAmount || tx.amount, symbol)} {symbol}
         </span>
       );

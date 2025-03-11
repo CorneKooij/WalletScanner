@@ -110,7 +110,8 @@ const Transactions = () => {
         </span>
       );
     }
-    return <span className="font-medium">₳{formatTokenAmount(tx.amount, 'ADA')}</span>;
+    // Default to green for other positive transactions
+    return <span className="text-success font-medium">₳{formatTokenAmount(tx.amount, 'ADA')}</span>;
   };
 
   // Handle copy address to clipboard

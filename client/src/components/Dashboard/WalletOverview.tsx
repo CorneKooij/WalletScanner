@@ -74,11 +74,11 @@ const WalletOverview = () => {
     const totalValue = processedTokens.reduce((sum, token) => sum + token.valueInAda, 0);
 
     // Filter tokens with significant value (>= 1% of total)
-    const significantTokens = processedTokens.filter(token => 
+    const significantTokens = processedTokens.filter(token =>
       (token.valueInAda / totalValue) >= 0.01
     );
 
-    const otherTokens = processedTokens.filter(token => 
+    const otherTokens = processedTokens.filter(token =>
       (token.valueInAda / totalValue) < 0.01
     );
 
@@ -276,13 +276,26 @@ const formatAmount = (tx: any) => {
   if (!tx.amount) return '₳0.00';
 
   if (tx.type === 'received') {
-    return `+₳${formatTokenAmount(tx.amount, 'ADA')}`;
+    return (
+      <span className="text-success font-medium">
+        +₳{formatTokenAmount(tx.amount, 'ADA')}
+      </span>
+    );
   } else if (tx.type === 'sent') {
-    return `-₳${formatTokenAmount(tx.amount, 'ADA')}`;
+    return (
+      <span className="text-destructive font-medium">
+        -₳{formatTokenAmount(tx.amount, 'ADA')}
+      </span>
+    );
   } else if (tx.type === 'swap') {
-    return `₳${formatTokenAmount(tx.amount, 'ADA')} → ${formatTokenAmount(tx.tokenAmount || 0, tx.tokenSymbol)} ${tx.tokenSymbol}`;
+    return (
+      <span className="text-info font-medium">
+        ₳{formatTokenAmount(tx.amount, 'ADA')} → {formatTokenAmount(tx.tokenAmount || '0', tx.tokenSymbol)} {tx.tokenSymbol}
+      </span>
+    );
   }
-  return `₳${formatTokenAmount(tx.amount, 'ADA')}`;
+  // Default to green for other positive transactions
+  return <span className="text-success font-medium">₳{formatTokenAmount(tx.amount, 'ADA')}</span>;
 };
 
 export default WalletOverview;
