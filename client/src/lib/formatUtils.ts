@@ -16,8 +16,8 @@ export const formatADA = (value: number | string, decimals = 2): string => {
 export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decimals?: number): string => {
   if (!amount) return '0';
 
-  // Parse the raw amount to a number, handling scientific notation
-  const rawAmount = typeof amount === 'string' ? 
+  // Parse the raw amount, handling scientific notation
+  let rawAmount = typeof amount === 'string' ? 
     parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
     amount;
 
@@ -32,16 +32,13 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
     });
   }
 
-  // For tokens with zero decimals (indivisible tokens)
+  // For tokens with zero decimals, return the raw amount with no processing
   if (decimals === 0) {
-    // For tokens with no decimals, bypass ALL decimal logic completely
-    return rawAmount.toString();
+    return String(rawAmount);
   }
 
   // For tokens with decimal places (like IAGON, WMTX)
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
-
-  // Check if the amount is in smallest units and needs adjustment
   const expectedMagnitude = Math.pow(10, tokenDecimals - 1);
   const needsAdjustment = rawAmount > expectedMagnitude;
 

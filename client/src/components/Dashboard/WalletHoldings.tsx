@@ -79,11 +79,6 @@ const WalletHoldings = () => {
                           <div className="font-medium truncate max-w-[120px]">{displayName}</div>
                           <div className="text-xs text-gray-500 truncate max-w-[120px]">
                             {token.symbol || 'UNKNOWN'}
-                            {token.unit && !isAda && (
-                              <span className="ml-2 text-gray-400">
-                                • {token.unit.slice(0, 8)}...{token.unit.slice(-4)}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -108,35 +103,16 @@ const WalletHoldings = () => {
                   </Tooltip>
                 </TooltipProvider>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-right cursor-help min-w-[100px]">
-                        <div className="font-medium text-right truncate max-w-[100px]">
-                          <span className="text-success">
-                            {formattedBalance}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 text-right">
-                          ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" align="end" className="max-w-[600px] p-4 space-y-2">
-                      <div>
-                        <p className="text-xs font-medium text-gray-500">Raw Balance</p>
-                        <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{rawBalance}</p>
-                        </div>
-                      </div>
-                      {isAda && (
-                        <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">1 ADA = 1,000,000 lovelace</p>
-                        </div>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="text-right min-w-[100px]">
+                  <div className="font-medium text-right truncate max-w-[100px]">
+                    <span className="text-success">
+                      {formattedBalance}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 text-right">
+                    ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
+                  </div>
+                </div>
               </div>
             );
           })
