@@ -34,21 +34,15 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
 
   // For tokens with zero decimals (indivisible tokens like HONEY)
   if (decimals === 0) {
-    // Show raw integer value without any transformations
-    return Math.round(rawAmount).toString();
+    // For tokens with no decimals, return raw integer value without any formatting
+    return rawAmount.toString();
   }
 
   // For tokens with decimal places (like IAGON)
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
 
-  // Determine if this value is already in correct decimal format
-  // by checking magnitude against decimal places
-  const magnitude = Math.floor(Math.log10(rawAmount));
-  const isInSmallestUnit = magnitude >= tokenDecimals;
-
-  const finalAmount = isInSmallestUnit ? 
-    rawAmount / Math.pow(10, tokenDecimals) : 
-    rawAmount;
+  // Only handle decimal places for tokens that are defined to have them
+  const finalAmount = rawAmount / Math.pow(10, tokenDecimals);
 
   return finalAmount.toLocaleString(undefined, {
     minimumFractionDigits: 0,
