@@ -51,37 +51,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               for (const token of walletData.tokens) {
                 const tokenPrice = tokenPrices.get(token.symbol);
                 const isLovelace = token.unit === 'lovelace';
+                const rawBalance = Number(token.quantity || 0);
 
                 if (isLovelace) {
                   await storage.createToken({
                     walletId: wallet.id,
                     name: 'Cardano',
                     symbol: 'ADA',
-                    balance: String(token.quantity || 0),
-                    valueUsd: (Number(token.quantity) / 1_000_000) * adaPrice,
+                    balance: String(rawBalance), // Store raw lovelace amount
+                    valueUsd: (rawBalance / 1_000_000) * adaPrice, // Convert to ADA for USD value
                     decimals: 6,
                     unit: token.unit
                   });
                 } else {
                   const tokenSymbol = token.symbol || 'UNKNOWN';
-                  const decimals = token.decimals || 6;
-                  const rawBalance = Number(token.quantity || 0);
+                  const decimals = token.decimals || 0; // Default to 0 decimals unless specified
 
-                  // Calculate USD value based on raw balance and token decimals
+                  // Calculate USD value based on token type
                   let valueUsd = null;
                   if (tokenPrice) {
-                    const adjustedBalance = decimals === 0 ?
-                      rawBalance : // Use raw balance for non-decimal tokens
-                      rawBalance / Math.pow(10, decimals); // Adjust for decimal tokens
-                    valueUsd = adjustedBalance * tokenPrice.priceAda * adaPrice;
+                    if (decimals === 0) {
+                      // For non-decimal tokens (HONEY, TALOS), use raw balance
+                      valueUsd = rawBalance * tokenPrice.priceAda * adaPrice;
+                    } else {
+                      // For decimal tokens (IAGON, WMTX), adjust by decimals
+                      valueUsd = (rawBalance / Math.pow(10, decimals)) * tokenPrice.priceAda * adaPrice;
+                    }
                   }
 
                   await storage.createToken({
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
                     symbol: tokenSymbol,
-                    balance: String(rawBalance), // Keep raw balance for display
-                    valueUsd,
+                    balance: String(rawBalance), // Always store raw balance
+                    valueUsd: valueUsd ? String(valueUsd) : null,
                     decimals,
                     unit: token.unit
                   });
@@ -128,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (error) {
           console.error('Error fetching data from Blockfrost:', error);
-          if (error.status_code === 404) {
+          if ((error as any).status_code === 404) {
             return res.status(404).json({ message: 'Wallet not found' });
           }
           return res.status(500).json({ message: 'Failed to fetch blockchain data' });
@@ -140,41 +143,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Update token values with current prices using proper decimal adjustment
+      // Return the stored values without recalculation
       const updatedTokens = tokens.map(token => {
+        // Only update USD values based on current prices, no balance adjustments
         const price = tokenPrices.get(token.symbol);
         const rawBalance = Number(token.balance);
         const isAda = token.symbol === 'ADA';
 
+        let valueUsd = null;
         if (isAda) {
-          return {
-            ...token,
-            valueUsd: (rawBalance / 1_000_000) * adaPrice
-          };
+          valueUsd = (rawBalance / 1_000_000) * adaPrice;
+        } else if (price) {
+          if (token.decimals === 0) {
+            // For non-decimal tokens, use raw balance
+            valueUsd = rawBalance * price.priceAda * adaPrice;
+          } else {
+            // For decimal tokens, adjust by decimals
+            valueUsd = (rawBalance / Math.pow(10, token.decimals)) * price.priceAda * adaPrice;
+          }
         }
-
-        // Calculate ADA value using decimals only for decimal-based tokens
-        const adjustedBalance = token.decimals === 0 ?
-          rawBalance : // Use raw balance for non-decimal tokens
-          rawBalance / Math.pow(10, token.decimals); // Adjust for decimal tokens
-
-        const valueInAda = price ? adjustedBalance * price.priceAda : 0;
 
         return {
           ...token,
-          valueUsd: valueInAda * adaPrice
+          valueUsd: valueUsd ? String(valueUsd) : null
         };
       });
 
-      // Get ADA balance
+      // Get ADA balance from stored raw value
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
-      const adaBalance = adaToken ?
-        formatADA(Number(adaToken.balance) / 1_000_000) :
+      const adaBalance = adaToken ? 
+        formatADA(Number(adaToken.balance) / 1_000_000) : 
         '0';
 
       return res.json({
         address: wallet.address,
-        handle: null,
+        handle: wallet.handle,
         balance: {
           ada: adaBalance,
           usd: Number(adaBalance) * adaPrice,
