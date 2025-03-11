@@ -41,10 +41,15 @@ export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decim
   // For tokens with decimal places (like IAGON, WMTX)
   const tokenDecimals = decimals || 6; // Default to 6 if not specified
 
-  // Always divide by 10^decimals since blockchain amounts are in smallest units
-  const adjustedAmount = rawAmount / Math.pow(10, tokenDecimals);
+  // Check if the amount is in smallest units and needs adjustment
+  const expectedMagnitude = Math.pow(10, tokenDecimals - 1);
+  const needsAdjustment = rawAmount > expectedMagnitude;
 
-  return adjustedAmount.toLocaleString(undefined, {
+  const finalAmount = needsAdjustment ? 
+    rawAmount / Math.pow(10, tokenDecimals) : 
+    rawAmount;
+
+  return finalAmount.toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: tokenDecimals
   });
