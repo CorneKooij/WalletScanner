@@ -1,6 +1,6 @@
 import { useWallet } from '@/contexts/WalletContext';
 import { Card } from '@/components/ui/card';
-import { formatADA } from '@/lib/formatUtils';
+import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { Link } from 'wouter';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -8,7 +8,6 @@ interface Token {
   name: string;
   symbol: string;
   balance: string;
-  formattedBalance: string;
   valueUsd?: string | null;
   decimals?: number;
   unit?: string;
@@ -59,10 +58,10 @@ const WalletHoldings = () => {
             const displayName = token.name || 'Unknown Token';
             const isAda = token.symbol === 'ADA';
 
-            // Use pre-calculated formatted balance from server
+            // Calculate formatted balance once and use it for both display and tooltip
             const formattedBalance = isAda ?
-              `₳${token.formattedBalance}` :
-              token.formattedBalance;
+              `₳${walletData.balance.ada}` :
+              formatTokenAmount(token.balance, token.symbol, token.decimals);
 
             return (
               <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
@@ -89,7 +88,7 @@ const WalletHoldings = () => {
                       <div>
                         <p className="text-xs font-medium text-gray-500">Balance</p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{token.formattedBalance}</p>
+                          <p className="text-sm font-mono break-all select-all">{formattedBalance}</p>
                         </div>
                       </div>
                       {isAda && (
