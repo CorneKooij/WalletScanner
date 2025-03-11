@@ -18,64 +18,47 @@ export const formatADA = (value: number | string, decimals = 2): string => {
 };
 
 /**
- * Formats token amount based on the token's requirements
+ * Formats token amount based on the token's decimal places from metadata
  * @param amount The raw token amount (string or number)
  * @param symbol The token symbol for reference
- * @param decimals The number of decimal places for the token (optional)
+ * @param decimals The number of decimal places from token metadata
  * @returns Formatted token amount as string
  */
-export const formatTokenAmount = (amount: string | number, symbol?: string, decimals?: number): string => {
+export const formatTokenAmount = (amount: string | number, symbol = 'ADA', decimals?: number): string => {
   if (!amount) return '0';
 
   // Convert to number and handle scientific notation
-  const numAmount = typeof amount === 'string' ? 
+  let numAmount = typeof amount === 'string' ? 
     parseFloat(amount.includes('e') ? amount : amount.replace(/,/g, '')) : 
     amount;
 
   if (isNaN(numAmount)) return '0';
 
-  // Handle ADA specially (always 6 decimals)
-  if (symbol === 'ADA') {
-    const adaAmount = numAmount / 1_000_000; // Convert from lovelace to ADA
-    return adaAmount.toLocaleString(undefined, {
+  // Special handling for ADA which always has 6 decimals (lovelace conversion)
+  if (symbol.toUpperCase() === 'ADA') {
+    numAmount = numAmount / 1_000_000;
+    return numAmount.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 6
     });
   }
 
-  // Token has zero decimals (from token metadata)
+  // For other tokens, respect their decimal places from metadata
+  // If decimals is 0, token can only have whole numbers
+  // If decimals > 0, token can have fractional amounts
   if (decimals === 0) {
-    return Math.floor(numAmount).toLocaleString();
-  }
-
-  // Get the token's decimal places from blockchain data, default to 6 if not specified
-  const tokenDecimals = decimals !== undefined ? decimals : 6;
-
-  // For tokens with decimal places, divide by 10^decimals if the number is very large
-  // This handles the case where the token amount is expressed in the smallest unit
-  const divisor = Math.pow(10, tokenDecimals);
-  const adjustedAmount = numAmount > divisor * 1000 ? numAmount / divisor : numAmount;
-
-  // Calculate a reasonable display format based on the number's magnitude
-  // For very large numbers, use compact notation
-  if (adjustedAmount >= 1000000) {
-    return adjustedAmount.toLocaleString(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 2
-    });
-  } else if (adjustedAmount < 0.01) {
-    return adjustedAmount.toLocaleString(undefined, { 
-      maximumFractionDigits: tokenDecimals 
-    });
-  } else if (adjustedAmount < 1) {
-    return adjustedAmount.toLocaleString(undefined, { 
-      maximumFractionDigits: Math.min(4, tokenDecimals) 
-    });
-  } else {
-    return adjustedAmount.toLocaleString(undefined, { 
-      maximumFractionDigits: Math.min(2, tokenDecimals) 
+    // For tokens with no decimal places, show whole numbers only
+    return Math.floor(numAmount).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     });
   }
+
+  // For tokens with decimal places, show appropriate precision
+  return numAmount.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals || 6 // Default to 6 if decimals not provided
+  });
 };
 
 /**

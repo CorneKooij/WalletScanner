@@ -47,23 +47,6 @@ const WalletHoldings = () => {
     };
   };
 
-  const getTokenBalance = (token: Token) => {
-    const isAda = token.symbol === 'ADA';
-
-    if (isAda) {
-      return walletData.balance.ada;
-    }
-
-    // Use token.decimals property from blockchain data to determine formatting
-    if (token.decimals === 0) {
-      // Tokens with zero decimal places show as whole numbers
-      return String(Math.floor(Number(token.balance)));
-    }
-
-    // For tokens with decimals, format appropriately using the token's own decimal places
-    return formatTokenAmount(token.balance, token.symbol, token.decimals);
-  };
-
   return (
     <Card className="bg-white p-6">
       <h2 className="text-xl font-semibold mb-6">Token Holdings</h2>
@@ -120,9 +103,11 @@ const WalletHoldings = () => {
                       <div className="text-right cursor-help min-w-[100px]">
                         <div className="font-medium text-right truncate max-w-[100px]">
                           {isAda ? (
-                            <span className="text-primary">₳{walletData.balance.ada}</span>
+                            <span className="text-success">₳{walletData.balance.ada}</span>
                           ) : (
-                            getTokenBalance(token)
+                            <span className="text-success">
+                              {formatTokenAmount(token.balance, token.symbol, token.decimals)}
+                            </span>
                           )}
                         </div>
                         <div className="text-xs text-gray-500 text-right">

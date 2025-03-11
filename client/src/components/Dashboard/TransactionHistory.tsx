@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWallet } from '@/contexts/WalletContext';
 import { Card } from '@/components/ui/card';
-import { formatADA, formatTokenAmount, shortenAddress } from '@/lib/formatUtils';
+import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
 import { ArrowDown, ArrowUp, Clipboard, ExternalLink, Search, Shuffle, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -104,8 +104,6 @@ const TransactionHistory = () => {
       return <span className="font-medium">₳0.00</span>;
     }
 
-    const symbol = tx.tokenSymbol || 'ADA';
-
     if (tx.type === 'received' || tx.type === 'stake_reward') {
       return (
         <span className="text-success font-medium">
@@ -121,20 +119,17 @@ const TransactionHistory = () => {
     } else if (tx.type === 'swap') {
       return (
         <span className="text-info font-medium">
-          ₳{formatTokenAmount(tx.amount, 'ADA')} → {formatTokenAmount(tx.tokenAmount || '0', tx.tokenSymbol)} {tx.tokenSymbol || 'TOKEN'}
+          ₳{formatTokenAmount(tx.amount, 'ADA')} → {formatTokenAmount(tx.tokenAmount || '0', tx.tokenSymbol, tx.decimals)} {tx.tokenSymbol || 'TOKEN'}
         </span>
       );
     }
 
-    if (symbol === 'ADA') {
-      return <span className="text-success font-medium">₳{formatTokenAmount(tx.amount, symbol)}</span>;
-    } else {
-      return (
-        <span className="text-success font-medium">
-          {formatTokenAmount(tx.tokenAmount || tx.amount, symbol)} {symbol}
-        </span>
-      );
-    }
+    // Default to success color for other positive transactions
+    return (
+      <span className="text-success font-medium">
+        ₳{formatTokenAmount(tx.amount, 'ADA')}
+      </span>
+    );
   };
 
   // Handle copy address to clipboard

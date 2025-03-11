@@ -1,0 +1,57 @@
+Key Points
+It seems likely that Cardano tokens can have decimal amounts if defined with more than zero decimal places, and only whole amounts if defined with zero decimal places.
+The number of decimal places is set by the token creator and registered in the Cardano Token Registry.
+Research suggests this flexibility allows tokens to be tailored for different use cases, such as currencies with cents or indivisible assets.
+Overview
+Cardano's native tokens offer flexibility in how they handle amounts, depending on their decimal place settings. This means some tokens can be divided into fractions (decimal amounts), while others are limited to whole numbers, depending on how they're designed.
+Decimal vs. Whole Amounts
+Tokens with Decimal Amounts: These are tokens defined with more than zero decimal places, allowing transactions in fractions, like 0.01 or 1.5 tokens. For example, a token with 2 decimal places can be transacted in increments of 0.01.
+Tokens with Whole Amounts Only: These are tokens with zero decimal places, meaning they can only be transacted in whole numbers, like 1, 2, or 3 tokens, without any fractions.
+Creator's Role
+The token creator decides the number of decimal places when minting the token, which is then registered in the Cardano Token Registry. This setting determines whether the token can have decimal amounts or is limited to whole numbers.
+Survey Note: Detailed Analysis of Cardano Token Decimal Places
+Cardano, a decentralized blockchain platform, supports native tokens that can be customized with specific decimal place settings, influencing whether they can have decimal amounts or are restricted to whole numbers. This analysis explores the mechanics, implications, and examples of these settings, providing a comprehensive understanding for users and developers.
+Background on Cardano Tokens
+Cardano's native tokens, introduced with the Mary hard fork in March 2021, allow for the creation of custom tokens alongside its native currency, ADA. Unlike ADA, which has 6 decimal places (with Lovelace as the smallest unit, where 1 ADA = 1,000,000 Lovelace), native tokens' decimal places are defined by their creators. This flexibility is registered in the Cardano Token Registry, an off-chain metadata system that maps on-chain identifiers to human-readable information, including decimal places.
+Mechanics of Decimal Places
+The decimal places of a token determine its divisibility and how it is displayed in wallets and exchanges. Internally, Cardano handles all token amounts as integers, representing the smallest unit of the token. The number of decimal places (denoted as (d)) means the token can be divided into 
+10^d
+ parts, with each part being the smallest transactable unit.
+Tokens with Decimals > 0: If a token has, for example, 2 decimal places, the smallest unit is 0.01 token. This allows transactions in fractions, such as 0.01, 0.1, or 1.5 tokens. Internally, 0.01 token is represented as 1 unit, 1.0 token as 100 units, and so on. This is similar to how ADA can be transacted in fractions like 0.5 ADA, which is 500,000 Lovelace.
+Tokens with Decimals = 0: If a token has 0 decimal places, the smallest unit is 1 token, meaning it cannot be divided further. Transactions are limited to whole numbers, such as 1, 2, or 3 tokens, with no fractional amounts possible. This is useful for assets that should not be divisible, such as certain types of NFTs or indivisible digital goods.
+The choice of decimal places is crucial, as it affects user experience and interoperability with wallets and exchanges. For instance, a token with 2 decimal places might be suitable for a currency-like token (akin to dollars and cents), while 0 decimal places might be preferred for assets like tickets or unique digital items.
+Evidence from Documentation and Examples
+Documentation from Cardano Native Token FAQ clarifies that the decimal value is adjustable by the token creator and plays a "crucial role in the token's divisibility and its representation across wallets and exchanges." It notes that opting for no decimal places "simplifies the token's structure, appealing to certain use cases," confirming that tokens can be set with 0 decimal places for whole-number-only transactions.
+An example is the SUNDAE token, part of the SundaeSwap protocol, which has 6 decimal places, as seen in its metadata file. This allows for fine-grained transactions, such as 0.000001 SUNDAE, suitable for a governance token in a decentralized exchange. While specific examples of tokens with 0 decimal places were not found in the search, the ability to set decimals to 0 is explicitly mentioned, suggesting its practical use for assets requiring indivisibility.
+Implications and Use Cases
+The ability to choose decimal places offers significant flexibility:
+Decimal Amounts (Decimals > 0): Ideal for tokens representing currencies, rewards, or assets needing fine granularity, such as staking tokens or stablecoins. For instance, a token with 2 decimal places could mimic fiat currencies, allowing transactions in cents.
+Whole Amounts Only (Decimals = 0): Suitable for assets that should not be divisible, such as event tickets, unique digital collectibles, or tokens representing physical items like real estate shares that cannot be split. This setting ensures the token remains whole, aligning with its intended use case.
+Comparison with Other Blockchains
+Cardano's approach differs from Ethereum, where ERC20 tokens typically have 18 decimal places by default, allowing for high granularity. In contrast, Cardano's native tokens let creators define the exact number, offering more control. This is highlighted in discussions on Cardano Forum, where users compare Cardano's flexibility to Ethereum's standards, noting that Cardano's system allows for simpler structures with 0 decimal places, appealing to specific use cases.
+Technical Details and Display
+Wallets and exchanges rely on the decimal places registered in the Cardano Token Registry to display token amounts. For example, if a token has 1 decimal place, wallets might display 1.0, 1.5, or 2.0, but not 1.05, as the smallest unit is 0.1 token. This display affects user interaction, with some wallets like Daedalus potentially ignoring registry settings, as noted in forum discussions, leading to variations in user experience.
+Table: Examples of Decimal Place Settings and Their Effects
+Decimal Places
+Smallest Unit
+Can Have Decimal Amounts?
+Example Use Case
+0
+1 token
+No, only whole numbers
+Event tickets, NFTs
+2
+0.01 token
+Yes, e.g., 0.01, 0.1, 1.5
+Currency-like tokens
+6
+0.000001 token
+Yes, e.g., 0.000001, 1.0
+Governance tokens, staking
+This table illustrates how decimal places determine transactability, with tokens like SUNDAE (6 decimals) enabling fine granularity, while hypothetical tokens with 0 decimals would be limited to whole numbers.
+Conclusion
+In summary, Cardano tokens can be designed to have decimal amounts if their decimal places are set to more than zero, allowing for fractional transactions, or limited to whole amounts if set to zero, ensuring indivisibility. This design choice, registered in the Cardano Token Registry, offers creators flexibility to match the token's intended use, whether for currencies, rewards, or indivisible assets. While specific examples of 0-decimal tokens were not found, the documentation confirms their possibility, highlighting Cardano's adaptability in the blockchain ecosystem.
+Key Citations
+Cardano Native Token FAQ decimals on Cardano
+Cardano Token Registry Documentation
+Decimals for Native Tokens Cardano Forum
