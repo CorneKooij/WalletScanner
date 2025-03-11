@@ -1,10 +1,10 @@
 import { useWallet } from "@/contexts/WalletContext";
-import TabNavigation from "@/components/Dashboard/TabNavigation";
+import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
 import { Card } from "@/components/ui/card";
-import { formatADA } from "@/lib/formatUtils";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Search } from "lucide-react";
 import { useState } from "react";
+import TabNavigation from "@/components/Dashboard/TabNavigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Holdings = () => {
   const { walletData } = useWallet();
