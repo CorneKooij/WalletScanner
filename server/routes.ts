@@ -67,17 +67,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const decimals = token.decimals || 6;
                   const rawBalance = Number(token.quantity || 0);
 
-                  // Calculate USD value based on raw balance
+                  // Calculate USD value based on raw balance and token decimals
                   let valueUsd = null;
                   if (tokenPrice) {
-                    valueUsd = (rawBalance * tokenPrice.priceAda * adaPrice);
+                    const adjustedBalance = decimals === 0 ?
+                      rawBalance : // Use raw balance for non-decimal tokens
+                      rawBalance / Math.pow(10, decimals); // Adjust for decimal tokens
+                    valueUsd = adjustedBalance * tokenPrice.priceAda * adaPrice;
                   }
 
                   await storage.createToken({
                     walletId: wallet.id,
                     name: token.name || 'Unknown Token',
                     symbol: tokenSymbol,
-                    balance: String(rawBalance),
+                    balance: String(rawBalance), // Keep raw balance for display
                     valueUsd,
                     decimals,
                     unit: token.unit
@@ -137,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const nfts = await storage.getNFTsByWalletId(wallet.id);
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
-      // Update token values with current prices without adjusting balances
+      // Update token values with current prices using proper decimal adjustment
       const updatedTokens = tokens.map(token => {
         const price = tokenPrices.get(token.symbol);
         const rawBalance = Number(token.balance);
@@ -150,7 +153,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
 
-        const valueInAda = price ? rawBalance * price.priceAda : 0;
+        // Calculate ADA value using decimals only for decimal-based tokens
+        const adjustedBalance = token.decimals === 0 ?
+          rawBalance : // Use raw balance for non-decimal tokens
+          rawBalance / Math.pow(10, token.decimals); // Adjust for decimal tokens
+
+        const valueInAda = price ? adjustedBalance * price.priceAda : 0;
 
         return {
           ...token,
@@ -160,8 +168,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get ADA balance
       const adaToken = updatedTokens.find(t => t.symbol === 'ADA');
-      const adaBalance = adaToken ? 
-        formatADA(Number(adaToken.balance) / 1_000_000) : 
+      const adaBalance = adaToken ?
+        formatADA(Number(adaToken.balance) / 1_000_000) :
         '0';
 
       return res.json({
