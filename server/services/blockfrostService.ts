@@ -1,6 +1,6 @@
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
 
-const apiKey = "mainnetZTjKEJ4chUErNFUoKEEh5jQwwT9pzwbb";
+const apiKey = process.env.BLOCKFROST_API_KEY || "";
 
 const blockfrost = new BlockFrostAPI({
   projectId: apiKey,
