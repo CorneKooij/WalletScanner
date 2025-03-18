@@ -4,5 +4,4 @@ dist
 server/public
 vite.config.ts.*
 .env
-**/.env
 *.tar.gz
