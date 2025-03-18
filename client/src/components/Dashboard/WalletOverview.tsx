@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { useWallet } from '@/contexts/WalletContext';
-import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
-import { Card } from '@/components/ui/card';
-import { ArrowDown, ArrowUp, Shuffle } from 'lucide-react';
-import Chart from 'chart.js/auto';
+import { useEffect, useRef } from "react";
+import { useWallet } from "@/contexts/WalletContext";
+import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
+import { Card } from "@/components/ui/card";
+import { ArrowDown, ArrowUp, Shuffle } from "lucide-react";
+import Chart from "chart.js/auto";
 
 interface Token {
   name: string;
@@ -19,15 +19,15 @@ const WalletOverview = () => {
   const tokenChartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const chartColorsRef = useRef<string[]>([
-    '#2563EB', // Primary
-    '#34D399', // Success
-    '#6366F1', // Info
-    '#FB923C', // Warning
-    '#F472B6', // Pink
-    '#FBBF24', // Yellow
-    '#EC4899', // Hot Pink
-    '#8B5CF6', // Violet
-    '#D1D5DB'  // Gray (for Others)
+    "#2563EB", // Primary
+    "#34D399", // Success
+    "#6366F1", // Info
+    "#FB923C", // Warning
+    "#F472B6", // Pink
+    "#FBBF24", // Yellow
+    "#EC4899", // Hot Pink
+    "#8B5CF6", // Violet
+    "#D1D5DB", // Gray (for Others)
   ]);
 
   useEffect(() => {
@@ -38,27 +38,27 @@ const WalletOverview = () => {
     }
 
     const processedTokens = walletData.tokens
-      .filter(token => {
+      .filter((token) => {
         if (!token || !token.balance) return false;
         const rawBalance = Number(token.balance);
         return rawBalance > 0;
       })
-      .map(token => {
-        const isAda = token.symbol === 'ADA';
+      .map((token) => {
+        const isAda = token.symbol === "ADA";
         const rawBalance = Number(token.balance);
 
         let valueInAda = 0;
-        let displayAmount = '';
+        let displayAmount = "";
 
         if (isAda) {
           valueInAda = Number(walletData.balance.ada);
           displayAmount = `${valueInAda} ADA`;
         } else {
           // ADA special case
-          if (token.symbol === 'ADA') {
+          if (token.symbol === "ADA") {
             displayAmount = `${formatADA(rawBalance / 1_000_000)} ADA`;
             valueInAda = rawBalance / 1_000_000;
-          } 
+          }
           // Handle other tokens based on their decimals property
           else {
             // Check if token has zero decimals from token data
@@ -72,13 +72,16 @@ const WalletOverview = () => {
             else {
               const maxDecimals = token.decimals || 6; // Default to 6 if not specified
               displayAmount = `${Number(rawBalance).toLocaleString(undefined, {
-                maximumFractionDigits: maxDecimals
+                maximumFractionDigits: maxDecimals,
               })} ${token.symbol}`;
             }
           }
-          valueInAda = token.valueUsd && walletData.balance.adaPrice
-            ? Number((token.valueUsd / walletData.balance.adaPrice).toFixed(6))
-            : 0;
+          valueInAda =
+            token.valueUsd && walletData.balance.adaPrice
+              ? Number(
+                  (token.valueUsd / walletData.balance.adaPrice).toFixed(6)
+                )
+              : 0;
         }
 
         return {
@@ -86,73 +89,81 @@ const WalletOverview = () => {
           symbol: token.symbol,
           valueInAda,
           displayAmount,
-          usdValue: token.valueUsd ? formatADA(token.valueUsd) : '0.00'
+          usdValue: token.valueUsd ? formatADA(token.valueUsd) : "0.00",
         };
       })
-      .filter(token => token.valueInAda > 0)
+      .filter((token) => token.valueInAda > 0)
       .sort((a, b) => b.valueInAda - a.valueInAda);
 
-    const totalValue = processedTokens.reduce((sum, token) => sum + token.valueInAda, 0);
-
-    // Filter tokens with significant value (>= 1% of total)
-    const significantTokens = processedTokens.filter(token =>
-      (token.valueInAda / totalValue) >= 0.01
+    const totalValue = processedTokens.reduce(
+      (sum, token) => sum + token.valueInAda,
+      0
     );
 
-    const otherTokens = processedTokens.filter(token =>
-      (token.valueInAda / totalValue) < 0.01
+    // Filter tokens with significant value (>= 1% of total)
+    const significantTokens = processedTokens.filter(
+      (token) => token.valueInAda / totalValue >= 0.01
+    );
+
+    const otherTokens = processedTokens.filter(
+      (token) => token.valueInAda / totalValue < 0.01
     );
 
     // Prepare chart data
-    const chartData = significantTokens.map(token => ({
+    const chartData = significantTokens.map((token) => ({
       name: token.name,
       symbol: token.symbol,
       value: token.valueInAda,
-      percentage: (token.valueInAda / totalValue * 100),
+      percentage: (token.valueInAda / totalValue) * 100,
       displayAmount: token.displayAmount,
       adaEquivalent: `₳${token.valueInAda.toFixed(2)}`,
-      usdValue: token.usdValue
+      usdValue: token.usdValue,
     }));
 
     // Add "Others" category if there are small-value tokens
     if (otherTokens.length > 0) {
-      const othersValue = otherTokens.reduce((sum, token) => sum + token.valueInAda, 0);
+      const othersValue = otherTokens.reduce(
+        (sum, token) => sum + token.valueInAda,
+        0
+      );
       chartData.push({
         name: `Other Tokens (${otherTokens.length})`,
-        symbol: 'OTHERS',
+        symbol: "OTHERS",
         value: othersValue,
-        percentage: (othersValue / totalValue * 100),
+        percentage: (othersValue / totalValue) * 100,
         displayAmount: `${otherTokens.length} tokens`,
         adaEquivalent: `₳${othersValue.toFixed(2)}`,
-        usdValue: formatADA(othersValue * walletData.balance.adaPrice)
+        usdValue: formatADA(othersValue * walletData.balance.adaPrice),
       });
     }
 
     // Create chart
     chartInstanceRef.current = new Chart(tokenChartRef.current, {
-      type: 'doughnut',
+      type: "doughnut",
       data: {
-        labels: chartData.map(item => item.name),
-        datasets: [{
-          data: chartData.map(item => item.value),
-          backgroundColor: chartColorsRef.current.slice(0, chartData.length),
-          borderWidth: 0
-        }]
+        labels: chartData.map((item) => item.name),
+        datasets: [
+          {
+            data: chartData.map((item) => item.value),
+            backgroundColor: chartColorsRef.current.slice(0, chartData.length),
+            borderWidth: 0,
+          },
+        ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '70%',
+        cutout: "70%",
         plugins: {
           legend: {
             display: true,
-            position: 'bottom',
+            position: "bottom",
             labels: {
               padding: 20,
               boxWidth: 12,
               font: {
                 size: 11,
-                family: "'Inter', system-ui, sans-serif"
+                family: "'Inter', system-ui, sans-serif",
               },
               generateLabels: (chart) => {
                 return chartData.map((item, i) => ({
@@ -160,40 +171,41 @@ const WalletOverview = () => {
                   fillStyle: chartColorsRef.current[i],
                   hidden: false,
                   lineWidth: 0,
-                  index: i
+                  index: i,
                 }));
-              }
-            }
+              },
+            },
           },
           tooltip: {
             enabled: true,
-            position: 'nearest',
+            position: "nearest",
             callbacks: {
-              title: (items) => items[0] ? chartData[items[0].dataIndex].name : '',
+              title: (items) =>
+                items[0] ? chartData[items[0].dataIndex].name : "",
               label: (context) => {
                 const item = chartData[context.dataIndex];
                 return [
                   `Amount: ${item.displayAmount}`,
                   `Value: ${item.adaEquivalent}`,
                   `USD: $${item.usdValue}`,
-                  `Share: ${item.percentage.toFixed(1)}%`
+                  `Share: ${item.percentage.toFixed(1)}%`,
                 ];
-              }
+              },
             },
             titleFont: {
               size: 14,
-              weight: 'bold',
-              family: "'Inter', system-ui, sans-serif"
+              weight: "bold",
+              family: "'Inter', system-ui, sans-serif",
             },
             bodyFont: {
               size: 13,
-              family: "'Inter', system-ui, sans-serif"
+              family: "'Inter', system-ui, sans-serif",
             },
             padding: 16,
-            displayColors: false
-          }
-        }
-      }
+            displayColors: false,
+          },
+        },
+      },
     });
   }, [walletData, isLoading]);
 
@@ -204,20 +216,20 @@ const WalletOverview = () => {
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-gray-500 font-medium">Total Balance</h2>
           <div className="bg-success/10 text-success text-sm font-medium px-2 py-1 rounded">
-            +{walletData?.balance.percentChange}% ↑
+            +{walletData?.balance?.percentChange || 0}% ↑
           </div>
         </div>
         <div className="flex items-baseline">
           <span className="text-3xl font-bold">
-            ₳{walletData?.balance.ada || '0'}
+            ₳{walletData?.balance?.ada || "0"}
           </span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
         <div className="text-gray-500 text-sm mt-1">
-          ≈ ${formatADA(walletData?.balance.usd || 0)} USD
+          ≈ ${formatADA(walletData?.balance?.usd || 0)} USD
         </div>
         <div className="text-gray-400 text-xs mt-2">
-          1 ADA = ${formatADA(walletData?.balance.adaPrice || 0)} USD
+          1 ADA = ${formatADA(walletData?.balance?.adaPrice || 0)} USD
         </div>
       </Card>
 
@@ -236,14 +248,21 @@ const WalletOverview = () => {
           {walletData?.transactions?.slice(0, 3).map((tx, index) => {
             const txStyle = getTransactionIcon(tx.type);
             return (
-              <div key={index} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+              <div
+                key={index}
+                className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
+              >
                 <div className="flex items-center">
                   <div className={`${txStyle.bg} p-1.5 rounded-md mr-3`}>
                     {txStyle.icon}
                   </div>
                   <div>
-                    <div className="font-medium">{tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}</div>
-                    <div className="text-xs text-gray-500">{tx.date}, {tx.time}</div>
+                    <div className="font-medium">
+                      {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {tx.date}, {tx.time}
+                    </div>
                   </div>
                 </div>
                 <div className={txStyle.color + " font-medium"}>
@@ -255,7 +274,7 @@ const WalletOverview = () => {
         </div>
         <button
           className="mt-4 text-primary text-sm font-medium hover:underline"
-          onClick={() => window.location.href = "/transactions"}
+          onClick={() => (window.location.href = "/transactions")}
         >
           View all transactions →
         </button>
@@ -266,57 +285,63 @@ const WalletOverview = () => {
 
 const getTransactionIcon = (type: string) => {
   switch (type) {
-    case 'received':
+    case "received":
       return {
-        bg: 'bg-blue-100',
+        bg: "bg-blue-100",
         icon: <ArrowDown className="h-4 w-4 text-primary" />,
-        color: 'text-success'
+        color: "text-success",
       };
-    case 'sent':
+    case "sent":
       return {
-        bg: 'bg-red-100',
+        bg: "bg-red-100",
         icon: <ArrowUp className="h-4 w-4 text-destructive" />,
-        color: 'text-destructive'
+        color: "text-destructive",
       };
-    case 'swap':
+    case "swap":
       return {
-        bg: 'bg-purple-100',
+        bg: "bg-purple-100",
         icon: <Shuffle className="h-4 w-4 text-info" />,
-        color: 'text-info'
+        color: "text-info",
       };
     default:
       return {
-        bg: 'bg-gray-100',
+        bg: "bg-gray-100",
         icon: <ArrowDown className="h-4 w-4 text-gray-500" />,
-        color: 'text-gray-500'
+        color: "text-gray-500",
       };
   }
 };
 
 const formatAmount = (tx: any) => {
-  if (!tx.amount) return '₳0.00';
+  if (!tx.amount) return "₳0.00";
 
-  if (tx.type === 'received') {
+  if (tx.type === "received") {
     return (
       <span className="text-success font-medium">
-        +₳{formatTokenAmount(tx.amount, 'ADA')}
+        +₳{formatTokenAmount(tx.amount, "ADA")}
       </span>
     );
-  } else if (tx.type === 'sent') {
+  } else if (tx.type === "sent") {
     return (
       <span className="text-destructive font-medium">
-        -₳{formatTokenAmount(tx.amount, 'ADA')}
+        -₳{formatTokenAmount(tx.amount, "ADA")}
       </span>
     );
-  } else if (tx.type === 'swap') {
+  } else if (tx.type === "swap") {
     return (
       <span className="text-info font-medium">
-        ₳{formatTokenAmount(tx.amount, 'ADA')} → {formatTokenAmount(tx.tokenAmount || '0', tx.tokenSymbol)} {tx.tokenSymbol}
+        ₳{formatTokenAmount(tx.amount, "ADA")} →{" "}
+        {formatTokenAmount(tx.tokenAmount || "0", tx.tokenSymbol)}{" "}
+        {tx.tokenSymbol}
       </span>
     );
   }
   // Default to green for other positive transactions
-  return <span className="text-success font-medium">₳{formatTokenAmount(tx.amount, 'ADA')}</span>;
+  return (
+    <span className="text-success font-medium">
+      ₳{formatTokenAmount(tx.amount, "ADA")}
+    </span>
+  );
 };
 
 export default WalletOverview;

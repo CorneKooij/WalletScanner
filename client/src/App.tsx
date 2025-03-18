@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Routes, Route, BrowserRouter } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,14 +13,15 @@ import Header from "@/components/Header";
 function Router() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <Header />
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/holdings" component={Holdings} />
-        <Route path="/transactions" component={Transactions} />
-        <Route path="/nfts" component={NFTs} />
-        <Route component={NotFound} />
-      </Switch>
+      <BrowserRouter>
+        <Header />
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/holdings" element={<Holdings />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/nfts" element={<NFTs />} />
+        </Routes>
+      </BrowserRouter>
     </div>
   );
 }

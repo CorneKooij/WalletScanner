@@ -1,8 +1,13 @@
-import { useWallet } from '@/contexts/WalletContext';
-import { Card } from '@/components/ui/card';
-import { formatADA, formatTokenAmount } from '@/lib/formatUtils';
-import { Link } from 'wouter';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useWallet } from "@/contexts/WalletContext";
+import { Card } from "@/components/ui/card";
+import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
+import { Link } from "react-router-dom";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Token {
   name: string;
@@ -29,22 +34,31 @@ const WalletHoldings = () => {
 
   const getTokenDetails = (token: Token) => {
     if (!token || !token.symbol) {
-      return { bg: 'bg-gray-100', textColor: 'text-gray-500', symbol: '?' };
+      return { bg: "bg-gray-100", textColor: "text-gray-500", symbol: "?" };
     }
 
-    const symbolMap: Record<string, { bg: string, textColor: string, symbol: string }> = {
-      'ADA': { bg: 'bg-blue-100', textColor: 'text-primary', symbol: '₳' },
-      'HOSKY': { bg: 'bg-red-100', textColor: 'text-red-500', symbol: 'H' },
-      'DJED': { bg: 'bg-green-100', textColor: 'text-green-500', symbol: 'D' },
-      'SUNDAE': { bg: 'bg-purple-100', textColor: 'text-purple-500', symbol: 'S' },
-      'MIN': { bg: 'bg-yellow-100', textColor: 'text-yellow-500', symbol: 'M' }
+    const symbolMap: Record<
+      string,
+      { bg: string; textColor: string; symbol: string }
+    > = {
+      ADA: { bg: "bg-blue-100", textColor: "text-primary", symbol: "₳" },
+      HOSKY: { bg: "bg-red-100", textColor: "text-red-500", symbol: "H" },
+      DJED: { bg: "bg-green-100", textColor: "text-green-500", symbol: "D" },
+      SUNDAE: {
+        bg: "bg-purple-100",
+        textColor: "text-purple-500",
+        symbol: "S",
+      },
+      MIN: { bg: "bg-yellow-100", textColor: "text-yellow-500", symbol: "M" },
     };
 
-    return symbolMap[token.symbol] || {
-      bg: 'bg-gray-100',
-      textColor: 'text-gray-500',
-      symbol: token.symbol?.charAt(0)?.toUpperCase() || '?'
-    };
+    return (
+      symbolMap[token.symbol] || {
+        bg: "bg-gray-100",
+        textColor: "text-gray-500",
+        symbol: token.symbol?.charAt(0)?.toUpperCase() || "?",
+      }
+    );
   };
 
   return (
@@ -55,45 +69,66 @@ const WalletHoldings = () => {
         {Array.isArray(walletData.tokens) && walletData.tokens.length > 0 ? (
           walletData.tokens.map((token: Token, index: number) => {
             const { bg, textColor, symbol } = getTokenDetails(token);
-            const displayName = token.name || 'Unknown Token';
-            const isAda = token.symbol === 'ADA';
+            const displayName = token.name || "Unknown Token";
+            const isAda = token.symbol === "ADA";
 
             // Use formatTokenAmount consistently for both display and tooltip
-            const formattedBalance = isAda ?
-              walletData.balance.ada :
-              formatTokenAmount(token.balance, token.symbol, token.decimals);
+            const formattedBalance = isAda
+              ? walletData.balance.ada
+              : formatTokenAmount(token.balance, token.symbol, token.decimals);
 
             return (
-              <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
+              <div
+                key={index}
+                className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0"
+              >
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center min-w-0 max-w-[60%] cursor-help">
-                        <div className={`w-8 h-8 ${bg} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
-                          <span className={`${textColor} font-semibold`}>{symbol}</span>
+                        <div
+                          className={`w-8 h-8 ${bg} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}
+                        >
+                          <span className={`${textColor} font-semibold`}>
+                            {symbol}
+                          </span>
                         </div>
                         <div className="min-w-0 truncate">
-                          <div className="font-medium truncate max-w-[120px]">{displayName}</div>
+                          <div className="font-medium truncate max-w-[120px]">
+                            {displayName}
+                          </div>
                           <div className="text-xs text-gray-500 truncate max-w-[120px]">
-                            {token.symbol || 'UNKNOWN'}
+                            {token.symbol || "UNKNOWN"}
                           </div>
                         </div>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="left" align="start" className="max-w-[600px] p-4 space-y-2">
+                    <TooltipContent
+                      side="left"
+                      align="start"
+                      className="max-w-[600px] p-4 space-y-2"
+                    >
                       <div>
                         <p className="font-medium text-sm">{displayName}</p>
-                        <p className="text-xs text-gray-500">{token.symbol || 'UNKNOWN'}</p>
+                        <p className="text-xs text-gray-500">
+                          {token.symbol || "UNKNOWN"}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-gray-500">Balance</p>
+                        <p className="text-xs font-medium text-gray-500">
+                          Balance
+                        </p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">{isAda ? `₳${formattedBalance}` : formattedBalance}</p>
+                          <p className="text-sm font-mono break-all select-all">
+                            {isAda ? `₳${formattedBalance}` : formattedBalance}
+                          </p>
                         </div>
                       </div>
                       {isAda && (
                         <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">Raw Balance (lovelace): {token.balance}</p>
+                          <p className="text-xs text-gray-500">
+                            Raw Balance (lovelace): {token.balance}
+                          </p>
                         </div>
                       )}
                     </TooltipContent>
@@ -107,7 +142,7 @@ const WalletHoldings = () => {
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 text-right">
-                    ≈ ${token.valueUsd ? formatADA(token.valueUsd) : '0.00'}
+                    ≈ ${token.valueUsd ? formatADA(token.valueUsd) : "0.00"}
                   </div>
                 </div>
               </div>
@@ -121,10 +156,11 @@ const WalletHoldings = () => {
       </div>
 
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 5 && (
-        <Link href="/holdings">
-          <a className="mt-6 block w-full py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors text-center">
-            View All Tokens
-          </a>
+        <Link
+          className="mt-6 block w-full py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors text-center"
+          to="/holdings"
+        >
+          View All Tokens
         </Link>
       )}
     </Card>
