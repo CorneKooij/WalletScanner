@@ -1,6 +1,6 @@
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
 
-const apiKey = "mainnetZTjKEJ4chUErNFUoKEEh5jQwwT9pzwbb";
+const apiKey = "";
 
 const blockfrost = new BlockFrostAPI({
   projectId: apiKey,
