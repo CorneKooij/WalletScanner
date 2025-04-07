@@ -1,7 +1,7 @@
 import { useWallet } from "@/contexts/WalletContext";
 import { Card } from "@/components/ui/card";
 import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
-import { Link } from "react-router-dom";
+import { Link } from "wouter";
 import {
   Tooltip,
   TooltipContent,
@@ -106,27 +106,29 @@ const WalletHoldings = () => {
                     <TooltipContent
                       side="left"
                       align="start"
-                      className="max-w-[600px] p-4 space-y-2"
+                      className="max-w-[600px] p-4 space-y-2 bg-white border border-gray-200"
                     >
                       <div>
-                        <p className="font-medium text-sm">{displayName}</p>
+                        <p className="font-medium text-sm text-gray-900">
+                          {displayName}
+                        </p>
                         <p className="text-xs text-gray-500">
                           {token.symbol || "UNKNOWN"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-gray-500">
+                        <p className="text-xs font-medium text-gray-600">
                           Balance
                         </p>
                         <div className="mt-1 bg-gray-50 rounded p-2">
-                          <p className="text-sm font-mono break-all select-all">
+                          <p className="text-sm font-mono break-all select-all text-gray-900">
                             {isAda ? `₳${formattedBalance}` : formattedBalance}
                           </p>
                         </div>
                       </div>
                       {isAda && (
-                        <div className="pt-2 border-t border-gray-100">
-                          <p className="text-xs text-gray-500">
+                        <div className="pt-2 border-t border-gray-200">
+                          <p className="text-xs text-gray-600">
                             Raw Balance (lovelace): {token.balance}
                           </p>
                         </div>
@@ -156,11 +158,10 @@ const WalletHoldings = () => {
       </div>
 
       {Array.isArray(walletData.tokens) && walletData.tokens.length > 5 && (
-        <Link
-          className="mt-6 block w-full py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors text-center"
-          to="/holdings"
-        >
-          View All Tokens
+        <Link href="/holdings">
+          <a className="mt-6 block w-full py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/5 transition-colors text-center">
+            View All Tokens
+          </a>
         </Link>
       )}
     </Card>

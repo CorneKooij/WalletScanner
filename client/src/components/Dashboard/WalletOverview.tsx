@@ -179,6 +179,13 @@ const WalletOverview = () => {
           tooltip: {
             enabled: true,
             position: "nearest",
+            backgroundColor: "white",
+            titleColor: "#111827",
+            bodyColor: "#4B5563",
+            borderColor: "#E5E7EB",
+            borderWidth: 1,
+            caretSize: 5,
+            caretColor: "white",
             callbacks: {
               title: (items) =>
                 items[0] ? chartData[items[0].dataIndex].name : "",
@@ -216,20 +223,20 @@ const WalletOverview = () => {
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-gray-500 font-medium">Total Balance</h2>
           <div className="bg-success/10 text-success text-sm font-medium px-2 py-1 rounded">
-            +{walletData?.balance?.percentChange || 0}% ↑
+            +{walletData?.balance.percentChange}% ↑
           </div>
         </div>
         <div className="flex items-baseline">
           <span className="text-3xl font-bold">
-            ₳{walletData?.balance?.ada || "0"}
+            ₳{walletData?.balance.ada || "0"}
           </span>
           <span className="text-gray-500 text-sm ml-2">ADA</span>
         </div>
         <div className="text-gray-500 text-sm mt-1">
-          ≈ ${formatADA(walletData?.balance?.usd || 0)} USD
+          ≈ ${formatADA(walletData?.balance.usd || 0)} USD
         </div>
         <div className="text-gray-400 text-xs mt-2">
-          1 ADA = ${formatADA(walletData?.balance?.adaPrice || 0)} USD
+          1 ADA = ${formatADA(walletData?.balance.adaPrice || 0)} USD
         </div>
       </Card>
 

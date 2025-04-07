@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import {
@@ -7,34 +7,13 @@ import {
   getTransactionDetails,
 } from "./services/blockfrostService";
 import { getTokenPrices } from "./services/muesliswapService";
-import path from "path";
 import { formatTokenAmount } from "../client/src/lib/formatUtils";
-import { NextFunction, Request, Response } from "express";
-
-// Middleware to disable caching for API routes
-const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate"
-  );
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
-};
+import { getWalletNFTs, getNFTTransactionHistory } from "./services/nftService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.use(noCacheMiddleware); // Apply no-cache middleware to all routes
-
-  // Serve static files in production/local environment
-  if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../public")));
-  }
-
   app.get("/api/prices", async (req, res) => {
-    console.log("GET /api/prices");
     try {
       const prices = await getTokenPrices();
-      console.log("Fetched token prices:", prices);
       return res.json({
         prices: Array.from(prices.entries()).map(([symbol, data]) => ({
           symbol,
@@ -47,168 +26,390 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Basic wallet info endpoint - high priority data
+  app.get("/api/wallet/:address/info", async (req, res) => {
+    try {
+      const { address } = req.params;
+
+      if (!address) {
+        return res.status(400).json({ message: "Wallet address is required" });
+      }
+
+      if (!address.startsWith("addr1")) {
+        return res
+          .status(400)
+          .json({ message: "Invalid Cardano address format" });
+      }
+
+      let wallet = await storage.getWalletByAddress(address);
+      const tokenPrices = await getTokenPrices();
+      const adaPrice = tokenPrices.get("ADA")?.priceUsd || 0;
+
+      if (!wallet || isStaleData(wallet.lastUpdated)) {
+        try {
+          const walletData = await getWalletInfo(address);
+
+          if (!wallet) {
+            wallet = await storage.createWallet({
+              address: walletData.address,
+              handle: null,
+              lastUpdated: new Date(),
+            });
+
+            if (walletData.tokens) {
+              for (const token of walletData.tokens) {
+                const tokenPrice = tokenPrices.get(token.symbol);
+                const isLovelace = token.unit === "lovelace";
+                const rawBalance = Number(token.quantity || 0);
+
+                if (isLovelace) {
+                  const formattedBalance = formatTokenAmount(
+                    rawBalance,
+                    "ADA",
+                    6
+                  );
+                  await storage.createToken({
+                    walletId: wallet.id,
+                    name: "Cardano",
+                    symbol: "ADA",
+                    balance: String(rawBalance), // Raw lovelace
+                    formattedBalance, // Formatted ADA amount
+                    valueUsd: (rawBalance / 1_000_000) * adaPrice,
+                    decimals: 6,
+                    unit: token.unit,
+                  });
+                } else {
+                  const tokenSymbol = token.symbol || "UNKNOWN";
+                  const decimals = token.decimals || 0; // Default to 0 for non-decimal tokens
+                  const formattedBalance = formatTokenAmount(
+                    rawBalance,
+                    tokenSymbol,
+                    decimals
+                  );
+
+                  let valueUsd = null;
+                  if (tokenPrice) {
+                    if (decimals === 0) {
+                      valueUsd = rawBalance * tokenPrice.priceAda * adaPrice;
+                    } else {
+                      valueUsd =
+                        (rawBalance / Math.pow(10, decimals)) *
+                        tokenPrice.priceAda *
+                        adaPrice;
+                    }
+                  }
+
+                  await storage.createToken({
+                    walletId: wallet.id,
+                    name: token.name || "Unknown Token",
+                    symbol: tokenSymbol,
+                    balance: String(rawBalance), // Raw balance
+                    formattedBalance, // Pre-calculated formatted balance
+                    valueUsd: valueUsd ? String(valueUsd) : null,
+                    decimals,
+                    unit: token.unit,
+                  });
+                }
+              }
+            }
+
+            if (walletData.balance) {
+              await storage.createBalanceHistory({
+                walletId: wallet.id,
+                date: new Date(),
+                balance: String(walletData.balance),
+              });
+            }
+          } else {
+            wallet = await storage.updateWallet(wallet.id, {
+              ...wallet,
+              lastUpdated: new Date(),
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching data from Blockfrost:", error);
+          if ((error as any).status_code === 404) {
+            return res.status(404).json({ message: "Wallet not found" });
+          }
+          return res
+            .status(500)
+            .json({ message: "Failed to fetch blockchain data" });
+        }
+      }
+
+      const tokens = await storage.getTokensByWalletId(wallet.id);
+      const history = await storage.getBalanceHistoryByWalletId(wallet.id);
+
+      // Update USD values only, use pre-calculated formatted balances
+      const updatedTokens = tokens.map((token) => {
+        const price = tokenPrices.get(token.symbol);
+        const rawBalance = Number(token.balance);
+        const isAda = token.symbol === "ADA";
+
+        let valueUsd = null;
+        if (isAda) {
+          valueUsd = (rawBalance / 1_000_000) * adaPrice;
+        } else if (price) {
+          if (token.decimals === 0) {
+            valueUsd = rawBalance * price.priceAda * adaPrice;
+          } else {
+            valueUsd =
+              (rawBalance / Math.pow(10, token.decimals)) *
+              price.priceAda *
+              adaPrice;
+          }
+        }
+
+        return {
+          ...token,
+          valueUsd: valueUsd ? String(valueUsd) : null,
+        };
+      });
+
+      // Get ADA balance from formatted value
+      const adaToken = updatedTokens.find((t) => t.symbol === "ADA");
+      const adaBalance = adaToken?.formattedBalance || "0";
+
+      return res.json({
+        address: wallet.address,
+        handle: wallet.handle,
+        balance: {
+          ada: adaBalance,
+          usd: Number(adaBalance) * adaPrice,
+          adaPrice,
+          percentChange: calculatePercentChange(history),
+        },
+        tokens: updatedTokens,
+        balanceHistory: history,
+      });
+    } catch (error) {
+      console.error("Error processing wallet info request:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Transactions endpoint - lower priority data
+  app.get("/api/wallet/:address/transactions", async (req, res) => {
+    try {
+      const { address } = req.params;
+
+      if (!address) {
+        return res.status(400).json({ message: "Wallet address is required" });
+      }
+
+      const wallet = await storage.getWalletByAddress(address);
+
+      if (!wallet) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+
+      // Get transactions from storage
+      const transactions = await storage.getTransactionsByWalletId(wallet.id);
+
+      // If there are no transactions yet, fetch them from Blockfrost
+      if (transactions.length === 0) {
+        try {
+          const walletData = await getWalletInfo(address);
+
+          if (walletData.transactions) {
+            for (const tx of walletData.transactions) {
+              try {
+                const txDetails = await getTransactionDetails(tx.hash, address);
+
+                await storage.createTransaction({
+                  walletId: wallet.id,
+                  type: txDetails.type || "transfer",
+                  amount: txDetails.amount,
+                  date: new Date(tx.blockTime * 1000),
+                  address: txDetails.counterpartyAddress
+                    ? `${txDetails.counterpartyAddress.slice(
+                        0,
+                        8
+                      )}...${txDetails.counterpartyAddress.slice(-8)}`
+                    : null,
+                  fullAddress: txDetails.counterpartyAddress,
+                  tokenSymbol:
+                    txDetails.unit === "lovelace"
+                      ? "ADA"
+                      : txDetails.tokenSymbol,
+                  tokenAmount: txDetails.tokenAmount,
+                  explorerUrl: `https://cardanoscan.io/transaction/${tx.hash}`,
+                });
+              } catch (txError) {
+                console.error(
+                  `Failed to process transaction ${tx.hash}:`,
+                  txError
+                );
+              }
+            }
+          }
+
+          // Fetch updated transactions
+          const updatedTransactions = await storage.getTransactionsByWalletId(
+            wallet.id
+          );
+          return res.json(updatedTransactions);
+        } catch (error) {
+          console.error(
+            "Error fetching transaction data from Blockfrost:",
+            error
+          );
+          return res
+            .status(500)
+            .json({ message: "Failed to fetch transaction data" });
+        }
+      }
+
+      return res.json(transactions);
+    } catch (error) {
+      console.error("Error processing transactions request:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // NFTs endpoint - lower priority data
+  app.get("/api/wallet/:address/nfts", async (req, res) => {
+    try {
+      const { address } = req.params;
+
+      if (!address) {
+        return res.status(400).json({ message: "Wallet address is required" });
+      }
+
+      const wallet = await storage.getWalletByAddress(address);
+
+      if (!wallet) {
+        return res.status(404).json({ message: "Wallet not found" });
+      }
+
+      // Get NFTs from storage
+      const nfts = await storage.getNFTsByWalletId(wallet.id);
+
+      return res.json(nfts);
+    } catch (error) {
+      console.error("Error processing NFTs request:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // NFT-specific endpoints
+  app.get("/api/wallet/:address/nfts/details", async (req, res) => {
+    try {
+      const { address } = req.params;
+
+      if (!address) {
+        return res.status(400).json({ message: "Wallet address is required" });
+      }
+
+      // Fetch NFTs directly from Blockfrost with enhanced metadata
+      const nfts = await getWalletNFTs(address);
+      return res.json(nfts);
+    } catch (error) {
+      console.error("Error processing NFT details request:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get transaction history for a specific NFT
+  app.get("/api/nft/:assetId/transactions", async (req, res) => {
+    try {
+      const { assetId } = req.params;
+
+      if (!assetId) {
+        return res.status(400).json({ message: "Asset ID is required" });
+      }
+
+      const transactions = await getNFTTransactionHistory(assetId);
+      return res.json(transactions);
+    } catch (error) {
+      console.error("Error processing NFT transaction history request:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Legacy endpoint for backward compatibility
   app.get("/api/wallet/:address", async (req, res) => {
     try {
       const { address } = req.params;
 
       if (!address) {
-        console.log("Wallet address is required");
         return res.status(400).json({ message: "Wallet address is required" });
       }
 
-      const prices = await getTokenPrices();
-      const adaPrice = prices.get("ADA")?.priceUsd || 0;
+      if (!address.startsWith("addr1")) {
+        return res
+          .status(400)
+          .json({ message: "Invalid Cardano address format" });
+      }
 
-      // Format token data
-      const response = await fetch(
-        `https://cardano-mainnet.blockfrost.io/api/v0/addresses/${address}`,
-        {
-          headers: {
-            project_id: process.env.VITE_BLOCKFROST_API_KEY || "",
-          },
+      const wallet = await storage.getWalletByAddress(address);
+
+      if (!wallet) {
+        return res.status(404).json({
+          message: "Wallet not found. Use /api/wallet/:address/info first.",
+        });
+      }
+
+      const tokens = await storage.getTokensByWalletId(wallet.id);
+      const transactions = await storage.getTransactionsByWalletId(wallet.id);
+      const nfts = await storage.getNFTsByWalletId(wallet.id);
+      const history = await storage.getBalanceHistoryByWalletId(wallet.id);
+
+      // Get token prices
+      const tokenPrices = await getTokenPrices();
+      const adaPrice = tokenPrices.get("ADA")?.priceUsd || 0;
+
+      // Update USD values
+      const updatedTokens = tokens.map((token) => {
+        const price = tokenPrices.get(token.symbol);
+        const rawBalance = Number(token.balance);
+        const isAda = token.symbol === "ADA";
+
+        let valueUsd = null;
+        if (isAda) {
+          valueUsd = (rawBalance / 1_000_000) * adaPrice;
+        } else if (price) {
+          if (token.decimals === 0) {
+            valueUsd = rawBalance * price.priceAda * adaPrice;
+          } else {
+            valueUsd =
+              (rawBalance / Math.pow(10, token.decimals)) *
+              price.priceAda *
+              adaPrice;
+          }
         }
-      );
 
-      if (!response.ok) {
-        throw new Error(`Blockfrost API error: ${response.statusText}`);
-      }
+        return {
+          ...token,
+          valueUsd: valueUsd ? String(valueUsd) : null,
+        };
+      });
 
-      const data = await response.json();
-      console.log("Raw Blockfrost response:", data);
+      // Get ADA balance from formatted value
+      const adaToken = updatedTokens.find((t) => t.symbol === "ADA");
+      const adaBalance = adaToken?.formattedBalance || "0";
 
-      if (!data.amount || !Array.isArray(data.amount)) {
-        throw new Error("Invalid response format from Blockfrost");
-      }
-
-      // Process tokens with better type handling
-      const tokens = await Promise.all(
-        data.amount.map(async (token: any) => {
-          // Base token structure with defaults
-          const baseToken = {
-            unit: token.unit || "",
-            quantity: token.quantity || "0",
-            balance: token.quantity || "0",
-            name: "Unknown",
-            symbol: "",
-            decimals: 0,
-            valueUsd: null,
-            isNFT: false,
-          };
-
-          // Handle ADA (lovelace)
-          if (token.unit === "lovelace") {
-            const quantity = BigInt(token.quantity || "0");
-            const adaAmount = Number(quantity) / 1_000_000;
-            return {
-              ...baseToken,
-              balance: adaAmount.toString(),
-              name: "Cardano",
-              symbol: "ADA",
-              decimals: 6,
-              valueUsd: adaAmount * adaPrice,
-            };
-          }
-
-          try {
-            // Fetch asset metadata
-            const assetInfo = await fetch(
-              `https://cardano-mainnet.blockfrost.io/api/v0/assets/${token.unit}`,
-              {
-                headers: {
-                  project_id: process.env.VITE_BLOCKFROST_API_KEY || "",
-                },
-              }
-            );
-
-            if (!assetInfo.ok) {
-              throw new Error("Failed to fetch asset metadata");
-            }
-
-            const metadata = await assetInfo.json();
-            console.log(`Metadata for ${token.unit}:`, metadata);
-
-            // Check if token is an NFT
-            const isNFT =
-              token.quantity === "1" &&
-              (!metadata.metadata?.decimals ||
-                metadata.metadata?.decimals === 0);
-
-            // Get token decimals
-            const decimals = metadata.metadata?.decimals || 0;
-
-            // Calculate token balance based on decimals
-            const rawBalance = BigInt(token.quantity || "0");
-            const balance =
-              decimals > 0
-                ? (Number(rawBalance) / Math.pow(10, decimals)).toString()
-                : rawBalance.toString();
-
-            return {
-              ...baseToken,
-              balance,
-              name:
-                metadata.onchain_metadata?.name ||
-                metadata.metadata?.name ||
-                token.unit.slice(56).replace(/[0-9a-f]/g, ""),
-              symbol:
-                metadata.onchain_metadata?.ticker ||
-                metadata.metadata?.ticker ||
-                token.unit.slice(0, 5),
-              decimals,
-              isNFT,
-              image: metadata.onchain_metadata?.image,
-              description: metadata.onchain_metadata?.description,
-            };
-          } catch (error) {
-            console.error(
-              `Error fetching metadata for token ${token.unit}:`,
-              error
-            );
-            return baseToken;
-          }
-        })
-      );
-
-      // Calculate ADA balance
-      const adaToken = tokens.find((t) => t.symbol === "ADA");
-      const adaBalance = adaToken ? parseFloat(adaToken.balance) : 0;
-
-      // Separate NFTs from regular tokens
-      const nfts = tokens.filter((t) => t.isNFT);
-      const regularTokens = tokens.filter((t) => !t.isNFT);
-
-      const formattedData = {
-        address,
+      return res.json({
+        address: wallet.address,
+        handle: wallet.handle,
         balance: {
-          ada: formatADA(adaBalance),
-          usd: adaBalance * adaPrice,
+          ada: adaBalance,
+          usd: Number(adaBalance) * adaPrice,
           adaPrice,
-          percentChange: 0,
+          percentChange: calculatePercentChange(history),
         },
-        tokens: regularTokens,
+        tokens: updatedTokens,
+        transactions,
         nfts,
-        transactions: [], // You can add transaction processing here if needed
-      };
-
-      console.log("Formatted response:", formattedData);
-      return res.json(formattedData);
+        balanceHistory: history,
+      });
     } catch (error) {
-      console.error("Error fetching wallet data:", error);
-      return res.status(500).json({ message: "Failed to fetch wallet data" });
+      console.error("Error processing wallet request:", error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   });
 
   const httpServer = createServer(app);
-  // Add a catch-all route to serve the SPA for any non-API routes
-  if (process.env.NODE_ENV === "production" || !process.env.REPL_ID) {
-    app.get("*", (req, res) => {
-      // Skip API routes
-      if (req.path.startsWith("/api")) return;
-
-      res.sendFile(path.join(__dirname, "../public/index.html"));
-    });
-  }
-
   return httpServer;
 }
 

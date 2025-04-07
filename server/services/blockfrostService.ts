@@ -1,6 +1,13 @@
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
 
-const apiKey = process.env.BLOCKFROST_API_KEY || "";
+const apiKey = process.env.BLOCKFROST_API_KEY;
+if (!apiKey) {
+  console.error("BLOCKFROST_API_KEY environment variable is not set");
+  console.error(
+    "Please add BLOCKFROST_API_KEY to your .env file or environment variables"
+  );
+  process.exit(1);
+}
 
 const blockfrost = new BlockFrostAPI({
   projectId: apiKey,
@@ -12,12 +19,7 @@ const ADA_HANDLE_POLICY_ID =
   "f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a";
 
 const logApiCall = (method: string, ...args: any[]) => {
-  const endpoint = `https://cardano-mainnet.blockfrost.io/api/v0/${method}`;
-  console.log(`[Blockfrost API] ${endpoint}`);
-  console.log(`Headers: { project_id: ${apiKey} }`);
-  if (args.length > 0) {
-    console.log("Arguments:", args);
-  }
+  console.log(`[Blockfrost API] Calling ${method} with args:`, ...args);
 };
 
 /**
@@ -72,16 +74,41 @@ async function resolveHandle(handle: string): Promise<string> {
   }
 }
 
-export async function getWalletInfo(address: string) {
-  logApiCall(`addresses/${address}`);
+export async function getWalletInfo(address: string, isHandle = false) {
   try {
-    const addressInfo = await blockfrost.addresses(address);
-    const transactions = await blockfrost.addressesTransactions(address, {
-      count: 20,
-      order: "desc",
-    });
-    const utxos = await blockfrost.addressesUtxos(address);
+    logApiCall("getWalletInfo", address, isHandle);
 
+    let resolvedAddress = address;
+    let handle = null;
+
+    // If it's a handle, resolve it to an address
+    if (isHandle) {
+      try {
+        handle = address;
+        resolvedAddress = await resolveHandle(address);
+      } catch (error) {
+        console.error("[Blockfrost] Error resolving handle:", error);
+        throw new Error("Handle not found or invalid");
+      }
+    }
+
+    // Get address details
+    const addressInfo = await blockfrost.addresses(resolvedAddress);
+    console.log("[Blockfrost] Address info:", addressInfo);
+
+    // Get transaction history
+    const transactions = await blockfrost.addressesTransactions(
+      resolvedAddress,
+      {
+        count: 20,
+        order: "desc",
+      }
+    );
+
+    // Get asset balances using UTXO information
+    const utxos = await blockfrost.addressesUtxos(resolvedAddress);
+
+    // Aggregate token amounts from UTXOs
     const tokenMap = new Map<string, string>();
     utxos.forEach((utxo) => {
       utxo.amount.forEach((amt) => {
@@ -91,6 +118,7 @@ export async function getWalletInfo(address: string) {
       });
     });
 
+    // Process tokens with metadata
     const tokens = [];
     for (const [unit, quantity] of tokenMap.entries()) {
       if (unit === "lovelace") {
@@ -106,18 +134,47 @@ export async function getWalletInfo(address: string) {
 
       try {
         const metadata = await blockfrost.assetsById(unit);
+        const policyId = unit.slice(0, 56);
         const assetNameHex = unit.slice(56);
-        const assetName = Buffer.from(assetNameHex, "hex").toString();
+
+        let assetName;
+        try {
+          assetName = assetNameHex
+            ? Buffer.from(assetNameHex, "hex").toString()
+            : undefined;
+        } catch (e) {
+          console.log(
+            `[Blockfrost] Could not decode asset name for ${unit}:`,
+            e
+          );
+          assetName = assetNameHex;
+        }
+
+        // Log potential NFTs for debugging
+        if (quantity === "1") {
+          console.log(`[Blockfrost] Potential NFT detected: ${unit}`);
+          console.log(`  - Policy ID: ${policyId}`);
+          console.log(`  - Asset Name: ${assetName}`);
+          console.log(`  - Quantity: ${quantity}`);
+        }
 
         tokens.push({
           unit,
           quantity,
           name:
-            metadata.metadata?.name || assetName || unit.slice(0, 10) + "...",
-          symbol: metadata.metadata?.ticker || assetName.slice(0, 5),
+            metadata.metadata?.name ||
+            assetName ||
+            metadata.asset_name ||
+            unit.slice(0, 10) + "...",
+          symbol:
+            metadata.metadata?.ticker ||
+            metadata.asset ||
+            (assetName ? assetName.slice(0, 5) : unit.slice(0, 5)),
           decimals: metadata.metadata?.decimals || 0,
+          policyId,
         });
       } catch (error) {
+        console.log(`[Blockfrost] Error fetching metadata for ${unit}:`, error);
         tokens.push({
           unit,
           quantity,
@@ -128,8 +185,10 @@ export async function getWalletInfo(address: string) {
       }
     }
 
+    // Return formatted response
     return {
-      address,
+      address: resolvedAddress,
+      handle: isHandle ? handle : null,
       tokens,
       transactions: transactions.map((tx) => ({
         hash: tx.tx_hash,
@@ -137,7 +196,7 @@ export async function getWalletInfo(address: string) {
         blockTime: tx.block_time,
       })),
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Blockfrost] Error in getWalletInfo:", error);
     throw error;
   }

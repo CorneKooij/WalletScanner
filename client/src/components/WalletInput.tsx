@@ -2,11 +2,19 @@ import { useState } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
 
 const WalletInput = () => {
   const [walletId, setWalletId] = useState("");
-  const { setWalletData, isLoading, setIsLoading } = useWallet();
+  const {
+    setWalletData,
+    isLoading,
+    setIsLoading,
+    setTransactionsLoading,
+    setNftsLoading,
+  } = useWallet();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Validate Cardano wallet address
   const isValidAddress = (address: string) => {
@@ -37,8 +45,15 @@ const WalletInput = () => {
     }
 
     try {
+      // Set loading state for all data types
       setIsLoading(true);
-      const response = await fetch(`/api/wallet/${encodeURIComponent(input)}`);
+      setTransactionsLoading(true);
+      setNftsLoading(true);
+
+      // Fetch basic wallet info (high priority)
+      const response = await fetch(
+        `/api/wallet/${encodeURIComponent(input)}/info`
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -46,38 +61,106 @@ const WalletInput = () => {
       }
 
       const data = await response.json();
-      setWalletData(data);
+      setWalletData({
+        ...data,
+        transactions: [], // Will be loaded later
+        nfts: [], // Will be loaded later
+      });
 
+      setIsLoading(false);
+
+      // Show success toast
       toast({
         title: "Success",
-        description: "Successfully loaded wallet data",
+        description: "Wallet data loaded. Loading additional details...",
       });
+
+      // Always redirect to dashboard
+      setLocation("/");
+
+      // Fetch transactions in the background (lower priority)
+      fetchTransactions(input);
+
+      // Fetch NFTs in the background (lower priority)
+      fetchNFTs(input);
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to fetch wallet data",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch wallet data",
         variant: "destructive",
       });
       setWalletData(null);
-    } finally {
       setIsLoading(false);
+      setTransactionsLoading(false);
+      setNftsLoading(false);
+    }
+  };
+
+  const fetchTransactions = async (address: string) => {
+    try {
+      const response = await fetch(
+        `/api/wallet/${encodeURIComponent(address)}/transactions`
+      );
+
+      if (!response.ok) {
+        console.error("Failed to fetch transactions");
+        return;
+      }
+
+      const transactions = await response.json();
+
+      setWalletData((prevData: any) => ({
+        ...prevData,
+        transactions,
+      }));
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
+  const fetchNFTs = async (address: string) => {
+    try {
+      const response = await fetch(
+        `/api/wallet/${encodeURIComponent(address)}/nfts`
+      );
+
+      if (!response.ok) {
+        console.error("Failed to fetch NFTs");
+        return;
+      }
+
+      const nfts = await response.json();
+
+      setWalletData((prevData: any) => ({
+        ...prevData,
+        nfts,
+      }));
+    } catch (error) {
+      console.error("Error fetching NFTs:", error);
+    } finally {
+      setNftsLoading(false);
     }
   };
 
   return (
     <div className="w-full md:w-96">
       <div className="relative">
-        <input 
-          type="text" 
-          id="wallet-input" 
-          placeholder="Enter Cardano wallet address" 
+        <input
+          type="text"
+          id="wallet-input"
+          placeholder="Enter Cardano wallet address"
           className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none transition-all"
           value={walletId}
           onChange={(e) => setWalletId(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+          onKeyDown={(e) => e.key === "Enter" && handleLookup()}
           disabled={isLoading}
         />
-        <button 
+        <button
           className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#2563EB] text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
           onClick={handleLookup}
           disabled={isLoading}
@@ -88,7 +171,7 @@ const WalletInput = () => {
               Loading...
             </>
           ) : (
-            'Lookup'
+            "Lookup"
           )}
         </button>
       </div>

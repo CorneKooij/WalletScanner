@@ -2,7 +2,7 @@ import { useWallet } from "@/contexts/WalletContext";
 import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
 import { Card } from "@/components/ui/card";
 import { Search } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import TabNavigation from "@/components/Dashboard/TabNavigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -16,8 +16,7 @@ const Holdings = () => {
   const { walletData } = useWallet();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Early return for loading/no data state
-  if (!walletData || !walletData.tokens) {
+  if (!walletData) {
     return (
       <div className="py-12 flex flex-col items-center justify-center">
         <Alert className="max-w-lg">
@@ -58,28 +57,12 @@ const Holdings = () => {
     );
   };
 
-  // Filter tokens based on search term with null check
-  const filteredTokens = (walletData.tokens || []).filter((token) =>
-    token
-      ? token.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        token.symbol?.toLowerCase().includes(searchTerm.toLowerCase())
-      : false
+  // Filter tokens based on search term
+  const filteredTokens = walletData.tokens.filter(
+    (token) =>
+      token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      token.symbol.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const tokenRows = useMemo(() => {
-    if (!walletData?.tokens) return [];
-
-    return walletData.tokens
-      .filter((token) => token && token.balance && token.symbol) // Add stricter null checks
-      .map((token) => ({
-        name: token.name || "Unknown",
-        symbol: token.symbol || "",
-        balance: token.balance || "0",
-        valueUsd: token.valueUsd || 0,
-        decimals: token.decimals || 0,
-        unit: token.unit || "",
-      }));
-  }, [walletData?.tokens]);
 
   return (
     <main>
@@ -143,21 +126,23 @@ const Holdings = () => {
                       <TooltipContent
                         side="top"
                         align="start"
-                        className="max-w-[400px] p-4"
+                        className="max-w-[400px] p-4 bg-white border border-gray-200"
                       >
                         <div>
-                          <p className="font-medium text-sm">{displayName}</p>
+                          <p className="font-medium text-sm text-gray-900">
+                            {displayName}
+                          </p>
                           <p className="text-xs text-gray-500">
                             {token.symbol}
                           </p>
                         </div>
                         {token.unit && !isAda && (
-                          <div className="pt-2 border-t border-gray-100 mt-2">
-                            <p className="text-xs font-medium text-gray-500">
+                          <div className="pt-2 border-t border-gray-200 mt-2">
+                            <p className="text-xs font-medium text-gray-600">
                               Token ID
                             </p>
                             <div className="mt-1 bg-gray-50 rounded p-2">
-                              <p className="text-xs font-mono break-all select-all">
+                              <p className="text-xs font-mono break-all select-all text-gray-900">
                                 {token.unit}
                               </p>
                             </div>

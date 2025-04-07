@@ -1,11 +1,10 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useRoute } from "wouter";
 
 const TabNavigation = () => {
-  const location = useLocation();
-  const isRootActive = location.pathname === "/";
-  const isHoldingsActive = location.pathname === "/holdings";
-  const isTransactionsActive = location.pathname === "/transactions";
-  const isNFTsActive = location.pathname === "/nfts";
+  const [isRootActive] = useRoute("/");
+  const [isHoldingsActive] = useRoute("/holdings");
+  const [isTransactionsActive] = useRoute("/transactions");
+  const [isNFTsActive] = useRoute("/nfts");
 
   const getTabClassName = (isActive: boolean) => {
     return `flex-1 text-center px-4 py-2.5 border-b-2 font-medium text-sm transition-colors ${
@@ -18,20 +17,25 @@ const TabNavigation = () => {
   return (
     <div className="border-b border-gray-200 mb-6">
       <nav className="flex justify-between w-full max-w-screen-xl mx-auto px-4">
-        <Link to="/" className={getTabClassName(isRootActive)}>
-          Dashboard
+        <Link href="/">
+          <a className={getTabClassName(isRootActive)}>
+            Dashboard
+          </a>
         </Link>
-        <Link to="/holdings" className={getTabClassName(isHoldingsActive)}>
-          Holdings
+        <Link href="/holdings">
+          <a className={getTabClassName(isHoldingsActive)}>
+            Holdings
+          </a>
         </Link>
-        <Link
-          to="/transactions"
-          className={getTabClassName(isTransactionsActive)}
-        >
-          Transactions
+        <Link href="/transactions">
+          <a className={getTabClassName(isTransactionsActive)}>
+            Transactions
+          </a>
         </Link>
-        <Link to="/nfts" className={getTabClassName(isNFTsActive)}>
-          NFTs
+        <Link href="/nfts">
+          <a className={getTabClassName(isNFTsActive)}>
+            NFTs
+          </a>
         </Link>
       </nav>
     </div>
