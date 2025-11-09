@@ -83,10 +83,11 @@ npm test
 
 ### Future Improvements
 
-* Add integration tests mocking external API responses.
-* Add snapshot tests for complex component states.
-* Add E2E tests (Playwright) for critical wallet lookup flow.
-```
+- Add integration tests mocking external API responses.
+- Add snapshot tests for complex component states.
+- Add E2E tests (Playwright) for critical wallet lookup flow.
+
+````
 
 This will start the server at http://localhost:5000.
 
@@ -96,7 +97,7 @@ Build the application:
 
 ```bash
 npm run build
-```
+````
 
 Start the production server:
 
