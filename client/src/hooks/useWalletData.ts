@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/contexts/WalletContext";
 
-// Basic wallet info type
+import { WalletData, Token, TransactionSummary, NFTData } from "@shared/types";\n\n// Basic wallet info type
 interface WalletInfo {
   address: string;
   handle: string | null;
@@ -11,7 +11,7 @@ interface WalletInfo {
     adaPrice: number;
     percentChange: number;
   };
-  tokens: any[];
+  tokens: Token[];
 }
 
 // Fetch basic wallet info (high priority)
@@ -27,7 +27,7 @@ const fetchWalletInfo = async (address: string): Promise<WalletInfo> => {
 };
 
 // Fetch transaction history (lower priority)
-const fetchTransactions = async (address: string): Promise<any[]> => {
+const fetchTransactions = async (address: string): Promise<TransactionSummary[]> => {
   const response = await fetch(
     `/api/wallet/${encodeURIComponent(address)}/transactions`
   );
@@ -39,7 +39,7 @@ const fetchTransactions = async (address: string): Promise<any[]> => {
 };
 
 // Fetch NFTs (lower priority)
-const fetchNFTs = async (address: string): Promise<any[]> => {
+const fetchNFTs = async (address: string): Promise<NFTData[]> => {
   const response = await fetch(
     `/api/wallet/${encodeURIComponent(address)}/nfts`
   );
@@ -83,7 +83,7 @@ export const useWalletData = (address: string | null) => {
     enabled: !!address && walletInfoQuery.isSuccess,
     staleTime: 30 * 60 * 1000, // 30 minutes
     onSuccess: (transactions) => {
-      setWalletData((prev) => ({
+      setWalletData((prev: WalletData) => ({
         ...prev,
         transactions,
       }));
@@ -100,7 +100,7 @@ export const useWalletData = (address: string | null) => {
     enabled: !!address && walletInfoQuery.isSuccess,
     staleTime: 30 * 60 * 1000, // 30 minutes
     onSuccess: (nfts) => {
-      setWalletData((prev) => ({
+      setWalletData((prev: WalletData) => ({
         ...prev,
         nfts,
       }));

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TransactionDetail } from "@shared/types";
 import { useWallet } from "@/contexts/WalletContext";
 import { Card } from "@/components/ui/card";
 import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
@@ -51,7 +52,7 @@ const TransactionHistory = () => {
 
   // Filter transactions based on search term and selected type
   const filteredTransactions = Array.isArray(walletData.transactions)
-    ? walletData.transactions.filter((tx) => {
+	    ? (walletData.transactions as TransactionDetail[]).filter((tx) => {
         if (!tx) return false;
 
         const matchesSearch =
@@ -123,7 +124,7 @@ const TransactionHistory = () => {
   };
 
   // Format transaction amount with appropriate styling
-  const getFormattedAmount = (tx: any) => {
+  const getFormattedAmount = (tx: TransactionDetail) => {
     if (!tx || !tx.amount) {
       return <span className="font-medium">₳0.00</span>;
     }
@@ -248,7 +249,7 @@ const TransactionHistory = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedTransactions.map((tx, index) => {
+	              {paginatedTransactions.map((tx: TransactionDetail, index) => {
                 const typeDetails = getTransactionTypeDetails(tx.type);
                 return (
                   <tr key={index}>

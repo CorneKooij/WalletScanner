@@ -112,7 +112,7 @@ const WalletInput = () => {
 
       const transactions = await response.json();
 
-      setWalletData((prevData: any) => ({
+      setWalletData((prevData) => ({
         ...prevData,
         transactions,
       }));
@@ -136,7 +136,7 @@ const WalletInput = () => {
 
       const nfts = await response.json();
 
-      setWalletData((prevData: any) => ({
+      setWalletData((prevData) => ({
         ...prevData,
         nfts,
       }));

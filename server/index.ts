@@ -44,6 +44,7 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
+    log(`ERROR: ${status} - ${message}`);
     throw err;
   });
 

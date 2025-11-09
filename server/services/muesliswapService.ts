@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { Token } from "@shared/types";
 
 interface TokenPrice {
   symbol: string;
@@ -7,7 +8,63 @@ interface TokenPrice {
 }
 
 const MUESLISWAP_API_URL = 'https://api.muesliswap.com/list';
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/simple/token_price/cardano?contract_addresses=';
 const COINGECKO_ADA_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd';
+
+export async function getFallbackTokenPrices(tokens: Token[]): Promise<Map<string, TokenPrice>> {
+  const prices = new Map<string, TokenPrice>();
+  const tokenMap = new Map<string, Token>();
+  const assetIds = [];
+
+  for (const token of tokens) {
+    if (token.unit === 'lovelace') continue;
+    // Use policyId + assetNameHex as the contract address for CoinGecko Cardano API
+    const contractAddress = token.unit;
+    assetIds.push(contractAddress);
+    tokenMap.set(contractAddress, token);
+  }
+
+  if (assetIds.length === 0) {
+    return prices;
+  }
+
+  try {
+    const adaResponse = await fetch(COINGECKO_ADA_URL);
+    const adaData = await adaResponse.json() as any;
+    const adaUsdPrice = adaData?.cardano?.usd || 0;
+
+    const contractAddresses = assetIds.join(',');
+    const url = `${COINGECKO_API_URL}${contractAddresses}&vs_currencies=usd`;
+    console.log(`[CoinGecko] Fetching fallback prices from: ${url}`);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`CoinGecko Token Price API error: ${response.statusText}`);
+    }
+
+    const data = await response.json() as Record<string, { usd: number }>;
+
+    for (const [contractAddress, priceData] of Object.entries(data)) {
+      const token = tokenMap.get(contractAddress);
+      if (token && priceData?.usd) {
+        const priceUsd = priceData.usd;
+        // We don't have price in ADA from CoinGecko, so we'll calculate it
+        const priceAda = adaUsdPrice > 0 ? priceUsd / adaUsdPrice : 0;
+
+        prices.set(token.symbol, {
+          symbol: token.symbol,
+          priceAda: priceAda,
+          priceUsd: priceUsd
+        });
+        console.log(`[CoinGecko Fallback] Added price for ${token.symbol}: ${priceUsd} USD`);
+      }
+    }
+  } catch (error) {
+    console.error('[CoinGecko Fallback] Error fetching token prices:', error);
+  }
+
+  return prices;
+}
 
 export async function getTokenPrices(): Promise<Map<string, TokenPrice>> {
   try {

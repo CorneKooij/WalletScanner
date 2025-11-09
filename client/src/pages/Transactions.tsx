@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TransactionDetail } from "@shared/types";
 import { useWallet } from "@/contexts/WalletContext";
 import TabNavigation from "@/components/Dashboard/TabNavigation";
 import { Card } from "@/components/ui/card";
@@ -32,7 +33,7 @@ const Transactions = () => {
   }
 
   // Filter transactions based on search term and selected type
-  const filteredTransactions = walletData.transactions.filter(tx => {
+  const filteredTransactions = (walletData.transactions as TransactionDetail[]).filter(tx => {
     const matchesSearch = 
       searchTerm === '' || 
       tx.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -90,7 +91,7 @@ const Transactions = () => {
   };
 
   // Format transaction amount with appropriate styling
-  const getFormattedAmount = (tx: any) => {
+  const getFormattedAmount = (tx: TransactionDetail) => {
     if (tx.type === 'received' || tx.type === 'stake_reward') {
       return (
         <span className="text-success font-medium">
@@ -170,7 +171,7 @@ const Transactions = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedTransactions.map((tx, index) => {
+	              {paginatedTransactions.map((tx: TransactionDetail, index) => {
                 const typeDetails = getTransactionTypeDetails(tx.type);
                 return (
                   <tr key={index} className="hover:bg-gray-50">

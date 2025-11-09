@@ -1,8 +1,9 @@
 import { createContext, useContext, ReactNode, useState } from "react";
+import { WalletData } from "@shared/types";
 
 interface WalletContextType {
-  walletData: any | null;
-  setWalletData: (data: any) => void;
+  walletData: WalletData | null;
+  setWalletData: (data: WalletData) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   transactionsLoading: boolean;
@@ -14,7 +15,7 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
-  const [walletData, setWalletData] = useState<any | null>(null);
+  const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [nftsLoading, setNftsLoading] = useState(false);
