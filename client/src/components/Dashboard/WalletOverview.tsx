@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useWallet } from "@/contexts/WalletContext";
 import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
 import { Card } from "@/components/ui/card";
@@ -15,7 +16,7 @@ interface Token {
 }
 
 const WalletOverview = () => {
-  const { walletData, isLoading } = useWallet();
+
   const tokenChartRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const chartColorsRef = useRef<string[]>([
@@ -218,74 +219,110 @@ const WalletOverview = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      {/* Total Balance Card */}
-      <Card className="bg-white p-6">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-gray-500 font-medium">Total Balance</h2>
-          <div className="bg-success/10 text-success text-sm font-medium px-2 py-1 rounded">
-            +{walletData?.balance.percentChange}% ↑
-          </div>
-        </div>
-        <div className="flex items-baseline">
-          <span className="text-3xl font-bold">
-            ₳{walletData?.balance.ada || "0"}
-          </span>
-          <span className="text-gray-500 text-sm ml-2">ADA</span>
-        </div>
-        <div className="text-gray-500 text-sm mt-1">
-          ≈ ${formatADA(walletData?.balance.usd || 0)} USD
-        </div>
-        <div className="text-gray-400 text-xs mt-2">
-          1 ADA = ${formatADA(walletData?.balance.adaPrice || 0)} USD
-        </div>
-      </Card>
+	      {/* Total Balance Card */}
+	      <Card className="bg-white p-6">
+	        <div className="flex justify-between items-start mb-4">
+	          <h2 className="text-gray-500 font-medium">Total Balance</h2>
+	          {isLoading ? (
+	            <Skeleton className="h-6 w-16" />
+	          ) : (
+	            <div className="bg-success/10 text-success text-sm font-medium px-2 py-1 rounded">
+	              +{walletData?.balance.percentChange}% ↑
+	            </div>
+	          )}
+	        </div>
+	        <div className="flex items-baseline">
+	          {isLoading ? (
+	            <Skeleton className="h-10 w-32" />
+	          ) : (
+	            <span className="text-3xl font-bold">
+	              ₳{walletData?.balance.ada || "0"}
+	            </span>
+	          )}
+	          <span className="text-gray-500 text-sm ml-2">ADA</span>
+	        </div>
+	        <div className="text-gray-500 text-sm mt-1">
+	          {isLoading ? (
+	            <Skeleton className="h-4 w-24 mt-1" />
+	          ) : (
+	            `≈ $${formatADA(walletData?.balance.usd || 0)} USD`
+	          )}
+	        </div>
+	        <div className="text-gray-400 text-xs mt-2">
+	          {isLoading ? (
+	            <Skeleton className="h-3 w-20 mt-1" />
+	          ) : (
+	            `1 ADA = $${formatADA(walletData?.balance.adaPrice || 0)} USD`
+	          )}
+	        </div>
+	      </Card>
 
-      {/* Token Distribution Card */}
-      <Card className="bg-white p-6">
-        <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
-        <div className="h-72 relative">
-          <canvas ref={tokenChartRef} id="token-distribution-chart" />
-        </div>
-      </Card>
+	      {/* Token Distribution Card */}
+	      <Card className="bg-white p-6">
+	        <h2 className="text-gray-500 font-medium mb-4">Token Distribution</h2>
+	        <div className="h-72 relative flex items-center justify-center">
+	          {isLoading ? (
+	            <Skeleton className="h-full w-full rounded-full" />
+	          ) : (
+	            <canvas ref={tokenChartRef} id="token-distribution-chart" />
+	          )}
+	        </div>
+	      </Card>
 
-      {/* Recent Activity Card */}
-      <Card className="bg-white p-6">
-        <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
-        <div className="space-y-3">
-          {walletData?.transactions?.slice(0, 3).map((tx, index) => {
-            const txStyle = getTransactionIcon(tx.type);
-            return (
-              <div
-                key={index}
-                className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
-              >
-                <div className="flex items-center">
-                  <div className={`${txStyle.bg} p-1.5 rounded-md mr-3`}>
-                    {txStyle.icon}
-                  </div>
-                  <div>
-                    <div className="font-medium">
-                      {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {tx.date}, {tx.time}
-                    </div>
-                  </div>
-                </div>
-                <div className={txStyle.color + " font-medium"}>
-                  {formatAmount(tx)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <button
-          className="mt-4 text-primary text-sm font-medium hover:underline"
-          onClick={() => (window.location.href = "/transactions")}
-        >
-          View all transactions →
-        </button>
-      </Card>
+	      {/* Recent Activity Card */}
+	      <Card className="bg-white p-6">
+	        <h2 className="text-gray-500 font-medium mb-4">Recent Activity</h2>
+	        <div className="space-y-3">
+	          {isLoading
+	            ? Array.from({ length: 3 }).map((_, index) => (
+	                <div
+	                  key={index}
+	                  className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
+	                >
+	                  <div className="flex items-center">
+	                    <Skeleton className="h-8 w-8 rounded-md mr-3" />
+	                    <div>
+	                      <Skeleton className="h-4 w-24 mb-1" />
+	                      <Skeleton className="h-3 w-16" />
+	                    </div>
+	                  </div>
+	                  <Skeleton className="h-4 w-16" />
+	                </div>
+	              ))
+	            : walletData?.transactions?.slice(0, 3).map((tx, index) => {
+	                const txStyle = getTransactionIcon(tx.type);
+	                return (
+	                  <div
+	                    key={index}
+	                    className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
+	                  >
+	                    <div className="flex items-center">
+	                      <div className={`${txStyle.bg} p-1.5 rounded-md mr-3`}>
+	                        {txStyle.icon}
+	                      </div>
+	                      <div>
+	                        <div className="font-medium">
+	                          {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+	                        </div>
+	                        <div className="text-xs text-gray-500">
+	                          {tx.date}, {tx.time}
+	                        </div>
+	                      </div>
+	                    </div>
+	                    <div className={txStyle.color + " font-medium"}>
+	                      {formatAmount(tx)}
+	                    </div>
+	                  </div>
+	                );
+	              })}
+	        </div>
+	        <button
+	          className="mt-4 text-primary text-sm font-medium hover:underline"
+	          onClick={() => (window.location.href = "/transactions")}
+	        >
+	          View all transactions →
+	        </button>
+	      </Card>
     </div>
   );
 };

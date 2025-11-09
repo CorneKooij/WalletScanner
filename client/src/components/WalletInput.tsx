@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 
 const WalletInput = () => {
   const [walletId, setWalletId] = useState("");
+  const [history, setHistory] = useState<string[]>([]);
   const {
     setWalletData,
     isLoading,
@@ -21,6 +22,21 @@ const WalletInput = () => {
     // Cardano addresses start with addr1 and are typically 98-103 characters long
     const addressRegex = /^addr1[a-zA-Z0-9]{95,100}$/;
     return addressRegex.test(address);
+  };
+
+  useEffect(() => {
+    const storedHistory = localStorage.getItem("walletHistory");
+    if (storedHistory) {
+      setHistory(JSON.parse(storedHistory));
+    }
+  }, []);
+
+  const saveToHistory = (address: string) => {
+    setHistory((prevHistory) => {
+      const newHistory = [address, ...prevHistory.filter((a) => a !== address)].slice(0, 5);
+      localStorage.setItem("walletHistory", JSON.stringify(newHistory));
+      return newHistory;
+    });
   };
 
   const handleLookup = async () => {
@@ -61,6 +77,7 @@ const WalletInput = () => {
       }
 
       const data = await response.json();
+      saveToHistory(input);
       setWalletData({
         ...data,
         transactions: [], // Will be loaded later
@@ -112,7 +129,7 @@ const WalletInput = () => {
 
       const transactions = await response.json();
 
-      setWalletData((prevData: any) => ({
+      setWalletData((prevData) => ({
         ...prevData,
         transactions,
       }));
@@ -136,7 +153,7 @@ const WalletInput = () => {
 
       const nfts = await response.json();
 
-      setWalletData((prevData: any) => ({
+      setWalletData((prevData) => ({
         ...prevData,
         nfts,
       }));
@@ -149,12 +166,37 @@ const WalletInput = () => {
 
   return (
     <div className="w-full md:w-96">
-      <div className="relative">
+	      <div className="relative">
+	        {history.length > 0 && (
+	          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10">
+	            <select
+	              className="bg-transparent text-gray-500 text-sm h-full pr-8 cursor-pointer outline-none"
+	              onChange={(e) => {
+	                setWalletId(e.target.value);
+	                if (e.target.value) {
+	                  // Auto-lookup when a history item is selected
+	                  // This will be triggered by the state change in the next render cycle
+	                  // For now, just set the ID. The user can click "Lookup" or press Enter.
+	                }
+	              }}
+	              value={walletId}
+	            >
+	              <option value="" disabled>
+	                History
+	              </option>
+	              {history.map((address) => (
+	                <option key={address} value={address}>
+	                  {address.slice(0, 10)}...{address.slice(-10)}
+	                </option>
+	              ))}
+	            </select>
+	          </div>
+	        )}
         <input
           type="text"
           id="wallet-input"
           placeholder="Enter Cardano wallet address"
-          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none transition-all"
+	          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2563EB] focus:border-[#2563EB] outline-none transition-all pr-28"
           value={walletId}
           onChange={(e) => setWalletId(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleLookup()}

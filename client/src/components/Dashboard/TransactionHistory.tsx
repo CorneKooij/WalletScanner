@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TransactionDetail } from "@shared/types";
 import { useWallet } from "@/contexts/WalletContext";
 import { Card } from "@/components/ui/card";
 import { formatADA, formatTokenAmount } from "@/lib/formatUtils";
@@ -31,12 +33,35 @@ const TRANSACTION_TYPES = [
 ];
 
 const TransactionHistory = () => {
-  const { walletData } = useWallet();
+  const { walletData, isLoading } = useWallet();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   const itemsPerPage = 4;
+
+  if (isLoading) {
+    return (
+      <Card className="lg:col-span-2 bg-white p-6">
+        <h2 className="text-xl font-semibold mb-6">Transaction History</h2>
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+              <div className="flex items-center">
+                <Skeleton className="h-8 w-8 rounded-md mr-4" />
+                <div>
+                  <Skeleton className="h-4 w-24 mb-1" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
 
   if (!walletData || !walletData.transactions) {
     return (
@@ -51,7 +76,7 @@ const TransactionHistory = () => {
 
   // Filter transactions based on search term and selected type
   const filteredTransactions = Array.isArray(walletData.transactions)
-    ? walletData.transactions.filter((tx) => {
+	    ? (walletData.transactions as TransactionDetail[]).filter((tx) => {
         if (!tx) return false;
 
         const matchesSearch =
@@ -123,7 +148,7 @@ const TransactionHistory = () => {
   };
 
   // Format transaction amount with appropriate styling
-  const getFormattedAmount = (tx: any) => {
+  const getFormattedAmount = (tx: TransactionDetail) => {
     if (!tx || !tx.amount) {
       return <span className="font-medium">₳0.00</span>;
     }
@@ -248,7 +273,7 @@ const TransactionHistory = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginatedTransactions.map((tx, index) => {
+	              {paginatedTransactions.map((tx: TransactionDetail, index) => {
                 const typeDetails = getTransactionTypeDetails(tx.type);
                 return (
                   <tr key={index}>

@@ -198,8 +198,13 @@ export async function getWalletInfo(address: string, isHandle = false) {
     };
   } catch (error: any) {
     console.error("[Blockfrost] Error in getWalletInfo:", error);
-    throw error;
+    // Blockfrost errors often have a status code in the message, e.g., "The requested component has not been found. HTTP status code: 404"
+    if (error.message && error.message.includes("404")) {
+      throw new Error("Wallet not found or invalid address/handle.");
+    }
+    throw new Error("Failed to fetch wallet information from Blockfrost.");
   }
+
 }
 
 export async function getTokenMetadata(unit: string) {

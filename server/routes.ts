@@ -6,7 +6,7 @@ import {
   getTokenMetadata,
   getTransactionDetails,
 } from "./services/blockfrostService";
-import { getTokenPrices } from "./services/muesliswapService";
+import { getTokenPrices, getFallbackTokenPrices } from "./services/muesliswapService";
 import { formatTokenAmount } from "../client/src/lib/formatUtils";
 import { getWalletNFTs, getNFTTransactionHistory } from "./services/nftService";
 
@@ -42,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let wallet = await storage.getWalletByAddress(address);
-      const tokenPrices = await getTokenPrices();
+      let tokenPrices = await getTokenPrices();
       const adaPrice = tokenPrices.get("ADA")?.priceUsd || 0;
 
       if (!wallet || isStaleData(wallet.lastUpdated)) {
@@ -58,7 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (walletData.tokens) {
               for (const token of walletData.tokens) {
-                const tokenPrice = tokenPrices.get(token.symbol);
+                let tokenPrice = tokenPrices.get(token.symbol);
                 const isLovelace = token.unit === "lovelace";
                 const rawBalance = Number(token.quantity || 0);
 
@@ -88,6 +88,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   );
 
                   let valueUsd = null;
+                  if (!tokenPrice) {
+                    // Fallback to CoinGecko if MuesliSwap doesn't have the price
+                    const fallbackPrices = await getFallbackTokenPrices(walletData.tokens);
+                    tokenPrice = fallbackPrices.get(token.symbol);
+                  }
+
                   if (tokenPrice) {
                     if (decimals === 0) {
                       valueUsd = rawBalance * tokenPrice.priceAda * adaPrice;
@@ -356,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const history = await storage.getBalanceHistoryByWalletId(wallet.id);
 
       // Get token prices
-      const tokenPrices = await getTokenPrices();
+      let tokenPrices = await getTokenPrices();
       const adaPrice = tokenPrices.get("ADA")?.priceUsd || 0;
 
       // Update USD values
